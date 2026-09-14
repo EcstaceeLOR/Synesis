@@ -48,6 +48,8 @@ const organization: OrganizationRecord = {
   name: "Alpha Treasury",
   environment: "demo",
   pausedAt: null,
+  integrationStatus: "NOT_READY",
+  integrationsReadyAt: null,
   createdAt: "2026-09-14T10:00:00.000Z",
 };
 

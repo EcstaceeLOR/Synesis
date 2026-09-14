@@ -47,12 +47,84 @@ export const organizations = pgTable(
     name: text("name").notNull(),
     environment: text("environment").$type<"demo" | "live">().notNull(),
     pausedAt: timestamp("paused_at", { withTimezone: true, mode: "string" }),
+    integrationStatus: text("integration_status")
+      .$type<"NOT_READY" | "READY">()
+      .notNull()
+      .default("NOT_READY"),
+    integrationsReadyAt: timestamp("integrations_ready_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
     createdAt: createdAt(),
   },
   (table) => [
     check(
       "organizations_environment_check",
       sql`${table.environment} in ('demo', 'live')`,
+    ),
+    check(
+      "organizations_integration_status_check",
+      sql`${table.integrationStatus} in ('NOT_READY', 'READY')`,
+    ),
+  ],
+);
+
+export const integrationSecrets = pgTable(
+  "integration_secrets",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    integrationType: text("integration_type").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    initializationVector: text("initialization_vector").notNull(),
+    authenticationTag: text("authentication_tag").notNull(),
+    keyVersion: text("key_version").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("integration_secrets_org_type_unique").on(
+      table.organizationId,
+      table.integrationType,
+    ),
+  ],
+);
+
+export const integrationHealthChecks = pgTable(
+  "integration_health_checks",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    component: text("component").notNull(),
+    status: text("status")
+      .$type<"ready" | "failed" | "unconfigured">()
+      .notNull(),
+    message: text("message").notNull(),
+    details: jsonb("details").notNull().default({}),
+    durationMs: integer("duration_ms").notNull(),
+    checkedAt: timestamp("checked_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("integration_health_checks_org_component_unique").on(
+      table.organizationId,
+      table.component,
+    ),
+    check(
+      "integration_health_checks_status_check",
+      sql`${table.status} in ('ready', 'failed', 'unconfigured')`,
+    ),
+    check(
+      "integration_health_checks_duration_check",
+      sql`${table.durationMs} >= 0`,
     ),
   ],
 );
@@ -626,6 +698,8 @@ export const synesisTables = {
   authSessions,
   approvalDecisions,
   integrationConnections,
+  integrationSecrets,
+  integrationHealthChecks,
   walletSnapshots,
   mechs,
   mechToolVersions,

@@ -16,6 +16,8 @@
     "@fastify/cors": "11.3.0",
     "@synesis/database": "workspace:*",
     "@synesis/domain": "workspace:*",
+    "@synesis/keeperhub-client": "workspace:*",
+    "@synesis/olas-contracts": "workspace:*",
     "fastify": "^5.6.0",
     "jose": "6.2.12"
   },

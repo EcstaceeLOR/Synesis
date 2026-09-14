@@ -50,6 +50,12 @@ importers:
       '@synesis/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@synesis/keeperhub-client':
+        specifier: workspace:*
+        version: link:../../packages/keeperhub-client
+      '@synesis/olas-contracts':
+        specifier: workspace:*
+        version: link:../../packages/olas-contracts
       fastify:
         specifier: ^5.6.0
         version: 5.12.4
