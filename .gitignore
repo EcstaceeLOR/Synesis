@@ -12,6 +12,7 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 
 # Environment and secrets
 .env
@@ -34,8 +35,8 @@ Thumbs.db
 
 # Local tooling
 .tools/
+.corepack/
 
 # Playwright
 playwright-report/
 test-results/
-
