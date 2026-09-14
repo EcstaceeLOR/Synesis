@@ -211,24 +211,24 @@ Secrets, full API responses containing credentials, and private user data are ne
 
 ## 6. Multi-page product experience
 
-| Route | Page | Purpose and interaction |
-|---|---|---|
-| `/` | Product site | Explains Synesis, displays a verified example, and links to the app. |
-| `/app` | Command center | Portfolio balance, active intents, pending approvals, recent executions, integration health, and proof count. |
-| `/app/intents` | Intents | Filterable list of all decision lifecycles and their current states. |
-| `/app/intents/new` | New intent wizard | Select strategy, amount, Mechs, policy, expiry, and review the maximum possible spend. |
-| `/app/intents/[id]` | Intent room | Live timeline from quote through Olas delivery, quorum, simulation, execution, and proof. Primary demo screen. |
-| `/app/mechs` | Mech marketplace | Live discovered Olas Mechs, tools, payment types, price, delivery history, and compatibility status. |
-| `/app/mechs/[address]` | Mech profile | Onchain identity, supported tools, schema, recent deliveries, and why it is or is not eligible. |
-| `/app/policies` | Policies | List immutable versions, active policy, spend caps, quorum settings, and approval mode. |
-| `/app/policies/[id]` | Policy detail | Human-readable rules beside canonical JSON and content hash. |
-| `/app/executions` | Execution ledger | All KeeperHub simulations and broadcasts with filters for success, rejection, failure, and unconfirmed. |
-| `/app/executions/[id]` | Execution detail | Exact call, simulation, KeeperHub status, receipts, decoded logs, retry history, and explorer links. |
-| `/app/treasury` | Treasury | KeeperHub wallet address, Base ETH/USDC balances, Olas prepaid balance, Aave USDC position, and capped exposure. |
-| `/app/proofs` | Proof library | Searchable proof bundles and export controls. |
-| `/verify/[proofId]` | Public verifier | Redacted, shareable verification page that recalculates evidence hashes. |
-| `/app/settings/integrations` | Integrations | KeeperHub, Olas, RPC, IPFS and webhook health checks. |
-| `/app/settings/security` | Security | Contract allowlists, limits, approval thresholds, emergency pause, and active sessions. |
+| Route                        | Page              | Purpose and interaction                                                                                          |
+| ---------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `/`                          | Product site      | Explains Synesis, displays a verified example, and links to the app.                                             |
+| `/app`                       | Command center    | Portfolio balance, active intents, pending approvals, recent executions, integration health, and proof count.    |
+| `/app/intents`               | Intents           | Filterable list of all decision lifecycles and their current states.                                             |
+| `/app/intents/new`           | New intent wizard | Select strategy, amount, Mechs, policy, expiry, and review the maximum possible spend.                           |
+| `/app/intents/[id]`          | Intent room       | Live timeline from quote through Olas delivery, quorum, simulation, execution, and proof. Primary demo screen.   |
+| `/app/mechs`                 | Mech marketplace  | Live discovered Olas Mechs, tools, payment types, price, delivery history, and compatibility status.             |
+| `/app/mechs/[address]`       | Mech profile      | Onchain identity, supported tools, schema, recent deliveries, and why it is or is not eligible.                  |
+| `/app/policies`              | Policies          | List immutable versions, active policy, spend caps, quorum settings, and approval mode.                          |
+| `/app/policies/[id]`         | Policy detail     | Human-readable rules beside canonical JSON and content hash.                                                     |
+| `/app/executions`            | Execution ledger  | All KeeperHub simulations and broadcasts with filters for success, rejection, failure, and unconfirmed.          |
+| `/app/executions/[id]`       | Execution detail  | Exact call, simulation, KeeperHub status, receipts, decoded logs, retry history, and explorer links.             |
+| `/app/treasury`              | Treasury          | KeeperHub wallet address, Base ETH/USDC balances, Olas prepaid balance, Aave USDC position, and capped exposure. |
+| `/app/proofs`                | Proof library     | Searchable proof bundles and export controls.                                                                    |
+| `/verify/[proofId]`          | Public verifier   | Redacted, shareable verification page that recalculates evidence hashes.                                         |
+| `/app/settings/integrations` | Integrations      | KeeperHub, Olas, RPC, IPFS and webhook health checks.                                                            |
+| `/app/settings/security`     | Security          | Contract allowlists, limits, approval thresholds, emergency pause, and active sessions.                          |
 
 ### Shared navigation behavior
 
@@ -345,28 +345,28 @@ Terminal states are immutable. `UNCONFIRMED` is not automatically retried becaus
 
 ## 9. Data model
 
-| Entity | Important fields |
-|---|---|
-| `users` | id, email, auth provider, status, created_at |
-| `organizations` | id, name, environment, paused_at |
-| `memberships` | organization_id, user_id, role |
-| `integration_connections` | organization_id, type, encrypted_secret_ref, health, checked_at |
-| `wallet_snapshots` | wallet, chain_id, ETH/USDC balances, block_number, captured_at |
-| `mechs` | chain_id, address, service_id, payment_type, metadata_cid, status |
-| `mech_tool_versions` | mech_id, tool_id, input_schema, output_schema, schema_hash, observed_at |
-| `policy_versions` | organization_id, name, version, canonical_json, content_hash, activated_at |
-| `intents` | id, organization_id, state, strategy, amount, chain_id, snapshot_hash, expires_at |
-| `intent_mechs` | intent_id, mech_id, tool_version_id, quoted_price, request_cid |
-| `olas_requests` | intent_mech_id, request_id, kh_execution_id, tx_hash, state |
-| `deliveries` | olas_request_id, event_key, block_number, tx_hash, result_cid, result_hash |
-| `recommendations` | delivery_id, normalized_json, validation_status, content_hash |
-| `policy_evaluations` | intent_id, policy_version_id, input_hash, result, rule_results, output_hash |
-| `execution_plans` | intent_id, target, function, args, ABI hash, value, plan_hash, expires_at |
-| `keeperhub_executions` | purpose, idempotency_key, execution_id, simulation_hash, status |
-| `transaction_receipts` | kh_execution_id, tx_hash, block_number, receipt_status, verified, raw_hash |
-| `event_inbox` | source, event_key, payload_hash, status; unique(source, event_key) |
-| `audit_events` | organization_id, actor, action, entity, before_hash, after_hash, trace_id |
-| `proof_bundles` | intent_id, public_id, canonical_json, root_hash, created_at |
+| Entity                    | Important fields                                                                  |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| `users`                   | id, email, auth provider, status, created_at                                      |
+| `organizations`           | id, name, environment, paused_at                                                  |
+| `memberships`             | organization_id, user_id, role                                                    |
+| `integration_connections` | organization_id, type, encrypted_secret_ref, health, checked_at                   |
+| `wallet_snapshots`        | wallet, chain_id, ETH/USDC balances, block_number, captured_at                    |
+| `mechs`                   | chain_id, address, service_id, payment_type, metadata_cid, status                 |
+| `mech_tool_versions`      | mech_id, tool_id, input_schema, output_schema, schema_hash, observed_at           |
+| `policy_versions`         | organization_id, name, version, canonical_json, content_hash, activated_at        |
+| `intents`                 | id, organization_id, state, strategy, amount, chain_id, snapshot_hash, expires_at |
+| `intent_mechs`            | intent_id, mech_id, tool_version_id, quoted_price, request_cid                    |
+| `olas_requests`           | intent_mech_id, request_id, kh_execution_id, tx_hash, state                       |
+| `deliveries`              | olas_request_id, event_key, block_number, tx_hash, result_cid, result_hash        |
+| `recommendations`         | delivery_id, normalized_json, validation_status, content_hash                     |
+| `policy_evaluations`      | intent_id, policy_version_id, input_hash, result, rule_results, output_hash       |
+| `execution_plans`         | intent_id, target, function, args, ABI hash, value, plan_hash, expires_at         |
+| `keeperhub_executions`    | purpose, idempotency_key, execution_id, simulation_hash, status                   |
+| `transaction_receipts`    | kh_execution_id, tx_hash, block_number, receipt_status, verified, raw_hash        |
+| `event_inbox`             | source, event_key, payload_hash, status; unique(source, event_key)                |
+| `audit_events`            | organization_id, actor, action, entity, before_hash, after_hash, trace_id         |
+| `proof_bundles`           | intent_id, public_id, canonical_json, root_hash, created_at                       |
 
 Economic uniqueness constraints include:
 
@@ -640,4 +640,3 @@ Synesis is not done because pages render or an API returns a transaction hash. I
 - [Olas Mech Client](https://github.com/valory-xyz/mech-client)
 - [Olas Mech Client architecture](https://github.com/valory-xyz/mech-client/blob/main/docs/ARCHITECTURE.md)
 - [Olas Mech development documentation](https://stack.olas.network/mech-tools-dev/)
-

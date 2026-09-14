@@ -19,6 +19,41 @@ Create intent
 
 Synesis is under active development for the KeeperHub Agent Economy Hackathon. The repository begins with the approved architecture and an issue-driven implementation plan. Live mode will not substitute mock transactions or treat an unverified transaction hash as success.
 
+## Workspace
+
+The monorepo uses Node 24, pnpm 10, Turborepo, TypeScript in strict mode, and an
+isolated Python 3.11 service for Olas. From a clean checkout:
+
+```powershell
+corepack pnpm install --frozen-lockfile
+corepack pnpm dev
+```
+
+The web app runs on `http://localhost:3000`, the API on `http://localhost:4000`,
+and the Olas adapter on `http://localhost:8100`. Copy `.env.example` only when
+you need to override the safe demo defaults.
+
+Run every Node quality gate with:
+
+```powershell
+corepack pnpm format:check
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm build
+```
+
+The Olas adapter is locked and checked separately:
+
+```powershell
+Set-Location services/olas-adapter
+uv sync --locked --all-extras --dev
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy src tests
+uv run pytest
+```
+
 ## Architecture
 
 Read the complete [system architecture](docs/ARCHITECTURE.md), including:
@@ -41,4 +76,3 @@ The first production journey is intentionally constrained to Base mainnet, USDC,
 - Mech responses are untrusted evidence, never transaction instructions.
 - Every write uses stable economic idempotency and receipt verification.
 - Contract targets, selectors, amounts, and chain IDs are allowlisted and capped.
-
