@@ -1,0 +1,41 @@
+# JavaScript / TypeScript
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+.turbo/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+ethereum_private_key.txt
+
+# Runtime data
+data/
+logs/
+*.log
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.tools/
+
+# Playwright
+playwright-report/
+test-results/
+
