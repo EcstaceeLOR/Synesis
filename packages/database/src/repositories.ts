@@ -35,6 +35,13 @@ export type UserRecord = typeof schema.users.$inferSelect;
 export type OrganizationRecord = typeof schema.organizations.$inferSelect;
 export type MembershipRecord = typeof schema.memberships.$inferSelect;
 export type AuthSessionRecord = typeof schema.authSessions.$inferSelect;
+export type IntegrationSecretRecord =
+  typeof schema.integrationSecrets.$inferSelect;
+export type IntegrationHealthCheckRecord =
+  typeof schema.integrationHealthChecks.$inferSelect;
+export type IntegrationConnectionRecord =
+  typeof schema.integrationConnections.$inferSelect;
+export type WalletSnapshotRecord = typeof schema.walletSnapshots.$inferSelect;
 export type OrganizationRole = "viewer" | "operator" | "approver" | "owner";
 
 export interface SecurityAuditEventInput {
@@ -94,6 +101,23 @@ export interface ReadRepositories {
   readonly organizations: {
     findById(id: string): Promise<OrganizationRecord | undefined>;
   };
+  readonly integrationSecrets: {
+    find(
+      organizationId: string,
+      integrationType: string,
+    ): Promise<IntegrationSecretRecord | undefined>;
+  };
+  readonly integrationConnections: {
+    find(
+      organizationId: string,
+      integrationType: string,
+    ): Promise<IntegrationConnectionRecord | undefined>;
+  };
+  readonly integrationHealthChecks: {
+    list(
+      organizationId: string,
+    ): Promise<readonly IntegrationHealthCheckRecord[]>;
+  };
   readonly memberships: {
     find(
       organizationId: string,
@@ -150,6 +174,11 @@ export interface TransactionRepositories extends ReadRepositories {
     create(input: typeof schema.organizations.$inferInsert): Promise<void>;
     findById(id: string): Promise<OrganizationRecord | undefined>;
     clearPause(id: string): Promise<OrganizationRecord | undefined>;
+    setIntegrationReadiness(input: {
+      readonly id: string;
+      readonly status: "NOT_READY" | "READY";
+      readonly readyAt: string | null;
+    }): Promise<void>;
   };
   readonly memberships: ReadRepositories["memberships"] & {
     create(input: {
@@ -206,7 +235,7 @@ export interface TransactionRepositories extends ReadRepositories {
   readonly approvalDecisions: {
     create(input: typeof schema.approvalDecisions.$inferInsert): Promise<void>;
   };
-  readonly integrationConnections: {
+  readonly integrationConnections: ReadRepositories["integrationConnections"] & {
     upsert(input: {
       readonly id: string;
       readonly organizationId: string;
@@ -215,6 +244,17 @@ export interface TransactionRepositories extends ReadRepositories {
       readonly health?: string;
       readonly checkedAt?: string | null;
     }): Promise<void>;
+  };
+  readonly integrationSecrets: ReadRepositories["integrationSecrets"] & {
+    upsert(input: typeof schema.integrationSecrets.$inferInsert): Promise<void>;
+  };
+  readonly integrationHealthChecks: ReadRepositories["integrationHealthChecks"] & {
+    upsert(
+      input: typeof schema.integrationHealthChecks.$inferInsert,
+    ): Promise<void>;
+  };
+  readonly walletSnapshots: {
+    create(input: typeof schema.walletSnapshots.$inferInsert): Promise<void>;
   };
   readonly events: ReadRepositories["events"] & {
     accept(input: {
@@ -308,6 +348,46 @@ const createReadRepositories = (
         .limit(1);
       return rows[0];
     },
+  },
+  integrationSecrets: {
+    find: async (organizationId, integrationType) => {
+      const rows = await database
+        .select()
+        .from(schema.integrationSecrets)
+        .where(
+          and(
+            eq(schema.integrationSecrets.organizationId, organizationId),
+            eq(schema.integrationSecrets.integrationType, integrationType),
+          ),
+        )
+        .limit(1);
+      return rows[0];
+    },
+  },
+  integrationConnections: {
+    find: async (organizationId, integrationType) => {
+      const rows = await database
+        .select()
+        .from(schema.integrationConnections)
+        .where(
+          and(
+            eq(schema.integrationConnections.organizationId, organizationId),
+            eq(schema.integrationConnections.integrationType, integrationType),
+          ),
+        )
+        .limit(1);
+      return rows[0];
+    },
+  },
+  integrationHealthChecks: {
+    list: (organizationId) =>
+      database
+        .select()
+        .from(schema.integrationHealthChecks)
+        .where(
+          eq(schema.integrationHealthChecks.organizationId, organizationId),
+        )
+        .orderBy(asc(schema.integrationHealthChecks.component)),
   },
   memberships: {
     find: async (organizationId, userId) => {
@@ -548,6 +628,12 @@ const createTransactionRepositories = (
           .returning();
         return rows[0];
       },
+      setIntegrationReadiness: async ({ id, status, readyAt }) => {
+        await database
+          .update(schema.organizations)
+          .set({ integrationStatus: status, integrationsReadyAt: readyAt })
+          .where(eq(schema.organizations.id, id));
+      },
     },
     memberships: {
       ...read.memberships,
@@ -671,6 +757,7 @@ const createTransactionRepositories = (
       },
     },
     integrationConnections: {
+      ...read.integrationConnections,
       upsert: async (input) => {
         asEncryptedSecretReference(input.encryptedSecretRef);
         await database
@@ -687,6 +774,54 @@ const createTransactionRepositories = (
               checkedAt: input.checkedAt,
             },
           });
+      },
+    },
+    integrationSecrets: {
+      ...read.integrationSecrets,
+      upsert: async (input) => {
+        await database
+          .insert(schema.integrationSecrets)
+          .values(input)
+          .onConflictDoUpdate({
+            target: [
+              schema.integrationSecrets.organizationId,
+              schema.integrationSecrets.integrationType,
+            ],
+            set: {
+              id: input.id,
+              ciphertext: input.ciphertext,
+              initializationVector: input.initializationVector,
+              authenticationTag: input.authenticationTag,
+              keyVersion: input.keyVersion,
+              updatedAt: input.updatedAt,
+            },
+          });
+      },
+    },
+    integrationHealthChecks: {
+      ...read.integrationHealthChecks,
+      upsert: async (input) => {
+        await database
+          .insert(schema.integrationHealthChecks)
+          .values(input)
+          .onConflictDoUpdate({
+            target: [
+              schema.integrationHealthChecks.organizationId,
+              schema.integrationHealthChecks.component,
+            ],
+            set: {
+              status: input.status,
+              message: input.message,
+              details: input.details,
+              durationMs: input.durationMs,
+              checkedAt: input.checkedAt,
+            },
+          });
+      },
+    },
+    walletSnapshots: {
+      create: async (input) => {
+        await database.insert(schema.walletSnapshots).values(input);
       },
     },
     events: {

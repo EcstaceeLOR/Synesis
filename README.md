@@ -76,3 +76,5 @@ The first production journey is intentionally constrained to Base mainnet, USDC,
 - Mech responses are untrusted evidence, never transaction instructions.
 - Every write uses stable economic idempotency and receipt verification.
 - Contract targets, selectors, amounts, and chain IDs are allowlisted and capped.
+
+See [integration onboarding](docs/INTEGRATION_ONBOARDING.md) for the live dependency checks, encrypted credential boundary, and readiness gate.

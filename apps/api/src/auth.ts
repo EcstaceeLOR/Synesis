@@ -17,6 +17,11 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
+import type {
+  IntegrationCredentials,
+  IntegrationService,
+} from "./integrations.js";
+
 export const SESSION_COOKIE = "__Host-synesis_session";
 export const CSRF_COOKIE = "__Host-synesis_csrf";
 const SESSION_LIFETIME_MS = 12 * 60 * 60 * 1_000;
@@ -143,6 +148,7 @@ export interface AuthRouteOptions {
   readonly allowedOrigins: ReadonlySet<string>;
   readonly secureCookies?: boolean;
   readonly now?: () => Date;
+  readonly integrationService?: IntegrationService;
 }
 
 export const registerAuthRoutes = (
@@ -775,6 +781,172 @@ export const registerAuthRoutes = (
         });
       });
       return reply.status(204).send();
+    },
+  );
+
+  server.get<{ Querystring: { organizationId?: string } }>(
+    "/api/v1/integrations/health",
+    async (request, reply) => {
+      const context = await authenticate(request, reply);
+      if (!context || !store) return;
+      const organizationId = request.query.organizationId;
+      if (!organizationId) {
+        return sendError(
+          reply,
+          400,
+          "ORGANIZATION_REQUIRED",
+          "Select an organization to inspect integration health",
+        );
+      }
+      if (
+        !(await authorize(reply, context, organizationId, "organization:read"))
+      )
+        return;
+      if (!options.integrationService) {
+        return sendError(
+          reply,
+          503,
+          "INTEGRATIONS_UNAVAILABLE",
+          "Integration verification is not configured",
+        );
+      }
+      return options.integrationService.readHealth(organizationId);
+    },
+  );
+
+  server.post<{ Querystring: { organizationId?: string } }>(
+    "/api/v1/integrations/keeperhub/test",
+    async (request, reply) => {
+      const context = await authenticate(request, reply);
+      if (!context || !store || !requireCsrf(request, reply, context)) return;
+      const organizationId = request.query.organizationId;
+      if (!organizationId) {
+        return sendError(
+          reply,
+          400,
+          "ORGANIZATION_REQUIRED",
+          "Select an organization to configure integrations",
+        );
+      }
+      if (
+        !(await authorize(
+          reply,
+          context,
+          organizationId,
+          "organization:administer",
+          true,
+        ))
+      )
+        return;
+      if (!options.integrationService) {
+        return sendError(
+          reply,
+          503,
+          "INTEGRATIONS_UNAVAILABLE",
+          "Integration verification is not configured",
+        );
+      }
+      const body = bodyRecord(request.body);
+      const required = [
+        "keeperHubApiKey",
+        "baseRpcUrl",
+        "ipfsGatewayUrl",
+        "deliveryWebhookUrl",
+        "deliveryWebhookSecret",
+      ] as const;
+      if (!body || required.some((field) => typeof body[field] !== "string")) {
+        return sendError(
+          reply,
+          400,
+          "INVALID_INTEGRATION_SETTINGS",
+          "KeeperHub, RPC, IPFS, and webhook settings are required",
+        );
+      }
+      const credentials: IntegrationCredentials = {
+        keeperHubApiKey: body.keeperHubApiKey as string,
+        baseRpcUrl: body.baseRpcUrl as string,
+        ipfsGatewayUrl: body.ipfsGatewayUrl as string,
+        deliveryWebhookUrl: body.deliveryWebhookUrl as string,
+        deliveryWebhookSecret: body.deliveryWebhookSecret as string,
+        ...(typeof body.olasSubgraphUrl === "string" && body.olasSubgraphUrl
+          ? { olasSubgraphUrl: body.olasSubgraphUrl }
+          : {}),
+      };
+      try {
+        const summary = await options.integrationService.configureAndCheck(
+          organizationId,
+          credentials,
+        );
+        await store.transaction((repositories) =>
+          repositories.auditEvents.recordSecurityEvent({
+            id: randomUUID(),
+            organizationId,
+            actor: { type: "USER", id: context.user.id },
+            action: "integration.onboarding.verified",
+            entityType: "integration",
+            entityId: "keeperhub",
+            traceId: request.id,
+            reason: `readiness=${summary.readiness}`,
+            occurredAt: now().toISOString(),
+          }),
+        );
+        return summary;
+      } catch (error) {
+        return sendError(
+          reply,
+          error instanceof TypeError ? 400 : 502,
+          error instanceof TypeError
+            ? "INVALID_INTEGRATION_SETTINGS"
+            : "INTEGRATION_CHECK_FAILED",
+          error instanceof Error
+            ? error.message
+            : "Integration verification failed",
+        );
+      }
+    },
+  );
+
+  server.post<{ Querystring: { organizationId?: string } }>(
+    "/api/v1/integrations/olas/test",
+    async (request, reply) => {
+      const context = await authenticate(request, reply);
+      if (!context || !store || !requireCsrf(request, reply, context)) return;
+      const organizationId = request.query.organizationId;
+      if (!organizationId)
+        return sendError(
+          reply,
+          400,
+          "ORGANIZATION_REQUIRED",
+          "Select an organization to recheck integrations",
+        );
+      if (
+        !(await authorize(
+          reply,
+          context,
+          organizationId,
+          "organization:administer",
+        ))
+      )
+        return;
+      if (!options.integrationService)
+        return sendError(
+          reply,
+          503,
+          "INTEGRATIONS_UNAVAILABLE",
+          "Integration verification is not configured",
+        );
+      try {
+        return await options.integrationService.recheck(organizationId);
+      } catch (error) {
+        return sendError(
+          reply,
+          502,
+          "INTEGRATION_CHECK_FAILED",
+          error instanceof Error
+            ? error.message
+            : "Integration verification failed",
+        );
+      }
     },
   );
 

@@ -8,6 +8,7 @@ import {
   registerAuthRoutes,
   type IdentityVerifier,
 } from "./auth.js";
+import { EnvelopeEncryption, IntegrationService } from "./integrations.js";
 
 export interface BuildServerOptions {
   readonly store?: SynesisStore;
@@ -15,6 +16,7 @@ export interface BuildServerOptions {
   readonly allowedOrigins?: readonly string[];
   readonly secureCookies?: boolean;
   readonly now?: () => Date;
+  readonly integrationService?: IntegrationService;
 }
 
 export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
@@ -39,6 +41,22 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
         .map((origin) => origin.trim())
         .filter(Boolean),
   );
+  const encryptionKey = process.env.SYNESIS_SECRET_ENCRYPTION_KEY;
+  const integrationService =
+    options.integrationService ??
+    (store && encryptionKey
+      ? new IntegrationService({
+          store,
+          encryption: new EnvelopeEncryption(encryptionKey),
+          ...(options.now ? { now: options.now } : {}),
+          ...(process.env.KEEPERHUB_API_ORIGIN
+            ? { keeperHubOrigin: process.env.KEEPERHUB_API_ORIGIN }
+            : {}),
+          ...(process.env.IPFS_PROBE_CID
+            ? { ipfsProbeCid: process.env.IPFS_PROBE_CID }
+            : {}),
+        })
+      : undefined);
 
   server.register(cors, {
     origin: [...allowedOrigins],
@@ -63,6 +81,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
       ? {}
       : { secureCookies: options.secureCookies }),
     ...(options.now ? { now: options.now } : {}),
+    ...(integrationService ? { integrationService } : {}),
   });
 
   if (ownedStore) {

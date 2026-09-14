@@ -106,7 +106,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
       WHERE schemaname = 'public' AND tablename <> '_synesis_migrations'
       ORDER BY tablename
     `);
-    expect(tableRows.rows.map((row) => row.tablename)).toHaveLength(23);
+    expect(tableRows.rows.map((row) => row.tablename)).toHaveLength(25);
 
     const indexes = await pool.query<{ indexname: string }>(`
       SELECT indexname FROM pg_indexes
