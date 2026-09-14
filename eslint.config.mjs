@@ -1,4 +1,5 @@
 import eslint from "@eslint/js";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
@@ -16,6 +17,7 @@ export default tseslint.config(
   ...tseslint.configs.recommendedTypeChecked,
   {
     files: ["**/*.ts", "**/*.tsx"],
+    plugins: { "jsx-a11y": jsxA11y },
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -27,6 +29,8 @@ export default tseslint.config(
       },
     },
     rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      "jsx-a11y/no-noninteractive-tabindex": ["error", { roles: ["region"] }],
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
