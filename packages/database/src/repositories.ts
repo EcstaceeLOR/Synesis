@@ -2,7 +2,17 @@ import { randomUUID } from "node:crypto";
 
 import type { IntentStateTransition } from "@synesis/domain";
 import { isTerminalIntentState, TERMINAL_INTENT_STATES } from "@synesis/domain";
-import { and, asc, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
@@ -21,6 +31,23 @@ export type AuditEventRecord = typeof schema.auditEvents.$inferSelect;
 export type KeeperHubExecutionRecord =
   typeof schema.keeperHubExecutions.$inferSelect;
 export type OutboxMessageRecord = typeof schema.outboxMessages.$inferSelect;
+export type UserRecord = typeof schema.users.$inferSelect;
+export type OrganizationRecord = typeof schema.organizations.$inferSelect;
+export type MembershipRecord = typeof schema.memberships.$inferSelect;
+export type AuthSessionRecord = typeof schema.authSessions.$inferSelect;
+export type OrganizationRole = "viewer" | "operator" | "approver" | "owner";
+
+export interface SecurityAuditEventInput {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly actor: Readonly<Record<string, unknown>>;
+  readonly action: string;
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly traceId: string;
+  readonly reason?: string;
+  readonly occurredAt: string;
+}
 
 export interface OutboxMessageInput {
   readonly id: string;
@@ -57,8 +84,35 @@ export class PersistenceConflictError extends Error {
 }
 
 export interface ReadRepositories {
+  readonly users: {
+    findById(id: string): Promise<UserRecord | undefined>;
+    findByProviderSubject(
+      authProvider: string,
+      authSubject: string,
+    ): Promise<UserRecord | undefined>;
+  };
+  readonly organizations: {
+    findById(id: string): Promise<OrganizationRecord | undefined>;
+  };
+  readonly memberships: {
+    find(
+      organizationId: string,
+      userId: string,
+    ): Promise<MembershipRecord | undefined>;
+    listForUser(userId: string): Promise<readonly MembershipRecord[]>;
+  };
+  readonly authSessions: {
+    findActiveByTokenHash(
+      tokenHash: string,
+      now: string,
+    ): Promise<AuthSessionRecord | undefined>;
+  };
   readonly intents: {
     findById(id: string): Promise<IntentRecord | undefined>;
+    findByOrganizationAndId(
+      organizationId: string,
+      id: string,
+    ): Promise<IntentRecord | undefined>;
     listActive(): Promise<readonly IntentRecord[]>;
   };
   readonly events: {
@@ -66,6 +120,9 @@ export interface ReadRepositories {
   };
   readonly auditEvents: {
     listForIntent(intentId: string): Promise<readonly AuditEventRecord[]>;
+    listForOrganization(
+      organizationId: string,
+    ): Promise<readonly AuditEventRecord[]>;
   };
   readonly keeperHubExecutions: {
     findByIdempotencyKey(
@@ -81,11 +138,49 @@ export interface ReadRepositories {
 }
 
 export interface TransactionRepositories extends ReadRepositories {
+  readonly users: ReadRepositories["users"] & {
+    upsertIdentity(input: {
+      readonly id: string;
+      readonly email: string;
+      readonly authProvider: string;
+      readonly authSubject: string;
+    }): Promise<UserRecord>;
+  };
   readonly organizations: {
     create(input: typeof schema.organizations.$inferInsert): Promise<void>;
+    findById(id: string): Promise<OrganizationRecord | undefined>;
+    clearPause(id: string): Promise<OrganizationRecord | undefined>;
+  };
+  readonly memberships: ReadRepositories["memberships"] & {
+    create(input: {
+      readonly organizationId: string;
+      readonly userId: string;
+      readonly role: OrganizationRole;
+    }): Promise<void>;
+    setRole(input: {
+      readonly organizationId: string;
+      readonly userId: string;
+      readonly role: OrganizationRole;
+    }): Promise<MembershipRecord | undefined>;
+    countOwners(organizationId: string): Promise<number>;
+  };
+  readonly authSessions: ReadRepositories["authSessions"] & {
+    create(input: typeof schema.authSessions.$inferInsert): Promise<void>;
+    touch(id: string, lastSeenAt: string): Promise<void>;
+    markReauthenticated(input: {
+      readonly id: string;
+      readonly authenticatedAt: string;
+      readonly csrfTokenHash: string;
+    }): Promise<void>;
+    revoke(id: string, revokedAt: string): Promise<void>;
   };
   readonly policyVersions: {
     create(input: typeof schema.policyVersions.$inferInsert): Promise<void>;
+    activate(input: {
+      readonly id: string;
+      readonly organizationId: string;
+      readonly activatedAt: string;
+    }): Promise<boolean>;
   };
   readonly mechs: {
     create(input: typeof schema.mechs.$inferInsert): Promise<void>;
@@ -107,6 +202,9 @@ export interface TransactionRepositories extends ReadRepositories {
   };
   readonly intentMechs: {
     create(input: typeof schema.intentMechs.$inferInsert): Promise<void>;
+  };
+  readonly approvalDecisions: {
+    create(input: typeof schema.approvalDecisions.$inferInsert): Promise<void>;
   };
   readonly integrationConnections: {
     upsert(input: {
@@ -162,6 +260,9 @@ export interface TransactionRepositories extends ReadRepositories {
     }): Promise<void>;
     requeueExpiredLeases(leaseExpiresBefore: string): Promise<number>;
   };
+  readonly auditEvents: ReadRepositories["auditEvents"] & {
+    recordSecurityEvent(input: SecurityAuditEventInput): Promise<void>;
+  };
 }
 
 export interface SynesisStore {
@@ -175,12 +276,95 @@ export interface SynesisStore {
 const createReadRepositories = (
   database: DatabaseExecutor,
 ): ReadRepositories => ({
+  users: {
+    findById: async (id) => {
+      const rows = await database
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, id))
+        .limit(1);
+      return rows[0];
+    },
+    findByProviderSubject: async (authProvider, authSubject) => {
+      const rows = await database
+        .select()
+        .from(schema.users)
+        .where(
+          and(
+            eq(schema.users.authProvider, authProvider),
+            eq(schema.users.authSubject, authSubject),
+          ),
+        )
+        .limit(1);
+      return rows[0];
+    },
+  },
+  organizations: {
+    findById: async (id) => {
+      const rows = await database
+        .select()
+        .from(schema.organizations)
+        .where(eq(schema.organizations.id, id))
+        .limit(1);
+      return rows[0];
+    },
+  },
+  memberships: {
+    find: async (organizationId, userId) => {
+      const rows = await database
+        .select()
+        .from(schema.memberships)
+        .where(
+          and(
+            eq(schema.memberships.organizationId, organizationId),
+            eq(schema.memberships.userId, userId),
+          ),
+        )
+        .limit(1);
+      return rows[0];
+    },
+    listForUser: (userId) =>
+      database
+        .select()
+        .from(schema.memberships)
+        .where(eq(schema.memberships.userId, userId))
+        .orderBy(asc(schema.memberships.createdAt)),
+  },
+  authSessions: {
+    findActiveByTokenHash: async (tokenHash, now) => {
+      const rows = await database
+        .select()
+        .from(schema.authSessions)
+        .where(
+          and(
+            eq(schema.authSessions.tokenHash, tokenHash),
+            isNull(schema.authSessions.revokedAt),
+            gt(schema.authSessions.expiresAt, now),
+          ),
+        )
+        .limit(1);
+      return rows[0];
+    },
+  },
   intents: {
     findById: async (id) => {
       const rows = await database
         .select()
         .from(schema.intents)
         .where(eq(schema.intents.id, id))
+        .limit(1);
+      return rows[0];
+    },
+    findByOrganizationAndId: async (organizationId, id) => {
+      const rows = await database
+        .select()
+        .from(schema.intents)
+        .where(
+          and(
+            eq(schema.intents.organizationId, organizationId),
+            eq(schema.intents.id, id),
+          ),
+        )
         .limit(1);
       return rows[0];
     },
@@ -211,6 +395,12 @@ const createReadRepositories = (
         .select()
         .from(schema.auditEvents)
         .where(eq(schema.auditEvents.intentId, intentId))
+        .orderBy(asc(schema.auditEvents.occurredAt)),
+    listForOrganization: (organizationId) =>
+      database
+        .select()
+        .from(schema.auditEvents)
+        .where(eq(schema.auditEvents.organizationId, organizationId))
         .orderBy(asc(schema.auditEvents.occurredAt)),
   },
   keeperHubExecutions: {
@@ -328,14 +518,108 @@ const createTransactionRepositories = (
 
   return {
     ...read,
+    users: {
+      ...read.users,
+      upsertIdentity: async (input) => {
+        const rows = await database
+          .insert(schema.users)
+          .values(input)
+          .onConflictDoUpdate({
+            target: [schema.users.authProvider, schema.users.authSubject],
+            set: { email: input.email },
+          })
+          .returning();
+        const user = rows[0];
+        if (!user)
+          throw new PersistenceConflictError("Identity was not persisted");
+        return user;
+      },
+    },
     organizations: {
+      ...read.organizations,
       create: async (input) => {
         await database.insert(schema.organizations).values(input);
+      },
+      clearPause: async (id) => {
+        const rows = await database
+          .update(schema.organizations)
+          .set({ pausedAt: null })
+          .where(eq(schema.organizations.id, id))
+          .returning();
+        return rows[0];
+      },
+    },
+    memberships: {
+      ...read.memberships,
+      create: async (input) => {
+        await database.insert(schema.memberships).values(input);
+      },
+      setRole: async ({ organizationId, userId, role }) => {
+        const rows = await database
+          .update(schema.memberships)
+          .set({ role })
+          .where(
+            and(
+              eq(schema.memberships.organizationId, organizationId),
+              eq(schema.memberships.userId, userId),
+            ),
+          )
+          .returning();
+        return rows[0];
+      },
+      countOwners: async (organizationId) => {
+        const rows = await database
+          .select({ count: sql<number>`count(*)::integer` })
+          .from(schema.memberships)
+          .where(
+            and(
+              eq(schema.memberships.organizationId, organizationId),
+              eq(schema.memberships.role, "owner"),
+            ),
+          );
+        return rows[0]?.count ?? 0;
+      },
+    },
+    authSessions: {
+      ...read.authSessions,
+      create: async (input) => {
+        await database.insert(schema.authSessions).values(input);
+      },
+      touch: async (id, lastSeenAt) => {
+        await database
+          .update(schema.authSessions)
+          .set({ lastSeenAt })
+          .where(eq(schema.authSessions.id, id));
+      },
+      markReauthenticated: async ({ id, authenticatedAt, csrfTokenHash }) => {
+        await database
+          .update(schema.authSessions)
+          .set({ authenticatedAt, lastSeenAt: authenticatedAt, csrfTokenHash })
+          .where(eq(schema.authSessions.id, id));
+      },
+      revoke: async (id, revokedAt) => {
+        await database
+          .update(schema.authSessions)
+          .set({ revokedAt })
+          .where(eq(schema.authSessions.id, id));
       },
     },
     policyVersions: {
       create: async (input) => {
         await database.insert(schema.policyVersions).values(input);
+      },
+      activate: async ({ id, organizationId, activatedAt }) => {
+        const rows = await database
+          .update(schema.policyVersions)
+          .set({ activatedAt })
+          .where(
+            and(
+              eq(schema.policyVersions.id, id),
+              eq(schema.policyVersions.organizationId, organizationId),
+            ),
+          )
+          .returning({ id: schema.policyVersions.id });
+        return rows.length === 1;
       },
     },
     mechs: {
@@ -379,6 +663,11 @@ const createTransactionRepositories = (
     intentMechs: {
       create: async (input) => {
         await database.insert(schema.intentMechs).values(input);
+      },
+    },
+    approvalDecisions: {
+      create: async (input) => {
+        await database.insert(schema.approvalDecisions).values(input);
       },
     },
     integrationConnections: {
@@ -551,6 +840,12 @@ const createTransactionRepositories = (
           )
           .returning({ id: schema.outboxMessages.id });
         return rows.length;
+      },
+    },
+    auditEvents: {
+      ...read.auditEvents,
+      recordSecurityEvent: async (input) => {
+        await database.insert(schema.auditEvents).values(input);
       },
     },
   };

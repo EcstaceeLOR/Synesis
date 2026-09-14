@@ -22,13 +22,23 @@ const createdAt = () =>
     .defaultNow();
 const amount = (name: string) => numeric(name, { precision: 78, scale: 0 });
 
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  authProvider: text("auth_provider").notNull(),
-  status: text("status").notNull().default("active"),
-  createdAt: createdAt(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull().unique(),
+    authProvider: text("auth_provider").notNull(),
+    authSubject: text("auth_subject").notNull(),
+    status: text("status").notNull().default("active"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("users_provider_subject_unique").on(
+      table.authProvider,
+      table.authSubject,
+    ),
+  ],
+);
 
 export const organizations = pgTable(
   "organizations",
@@ -59,7 +69,51 @@ export const memberships = pgTable(
     role: text("role").notNull(),
     createdAt: createdAt(),
   },
-  (table) => [primaryKey({ columns: [table.organizationId, table.userId] })],
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.userId] }),
+    check(
+      "memberships_role_check",
+      sql`${table.role} in ('viewer', 'operator', 'approver', 'owner')`,
+    ),
+  ],
+);
+
+export const authSessions = pgTable(
+  "auth_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    csrfTokenHash: text("csrf_token_hash").notNull(),
+    authenticatedAt: timestamp("authenticated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "string" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("auth_sessions_active_user_idx")
+      .on(table.userId, table.expiresAt)
+      .where(sql`${table.revokedAt} is null`),
+    index("auth_sessions_expiry_idx")
+      .on(table.expiresAt)
+      .where(sql`${table.revokedAt} is null`),
+    check(
+      "auth_sessions_expiry_check",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+  ],
 );
 
 export const integrationConnections = pgTable(
@@ -213,6 +267,39 @@ export const intents = pgTable(
     index("intents_org_created_idx").on(table.organizationId, table.createdAt),
     check("intents_state_version_check", sql`${table.stateVersion} >= 0`),
     check("intents_amount_check", sql`${table.amount} > 0`),
+  ],
+);
+
+export const approvalDecisions = pgTable(
+  "approval_decisions",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    intentId: text("intent_id")
+      .notNull()
+      .references(() => intents.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    decision: text("decision").$type<"approve" | "reject">().notNull(),
+    reason: text("reason"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("approval_decisions_intent_user_unique").on(
+      table.intentId,
+      table.userId,
+    ),
+    index("approval_decisions_org_created_idx").on(
+      table.organizationId,
+      table.createdAt,
+    ),
+    check(
+      "approval_decisions_decision_check",
+      sql`${table.decision} in ('approve', 'reject')`,
+    ),
   ],
 );
 
@@ -536,6 +623,8 @@ export const synesisTables = {
   users,
   organizations,
   memberships,
+  authSessions,
+  approvalDecisions,
   integrationConnections,
   walletSnapshots,
   mechs,
