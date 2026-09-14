@@ -21,6 +21,11 @@ const migrations = [
       import.meta.url,
     ),
   },
+  {
+    id: "0002_auth_rbac",
+    up: new URL("../migrations/0002_auth_rbac.up.sql", import.meta.url),
+    down: new URL("../migrations/0002_auth_rbac.down.sql", import.meta.url),
+  },
 ] as const;
 
 export interface MigrationOptions {

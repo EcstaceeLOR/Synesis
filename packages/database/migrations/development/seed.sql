@@ -1,6 +1,11 @@
 -- DEVELOPMENT-ONLY fixtures. The CLI refuses to run this seed in live mode.
-INSERT INTO users (id, email, auth_provider)
-VALUES ('dev_user_operator', 'operator@synesis.local', 'development')
+INSERT INTO users (id, email, auth_provider, auth_subject)
+VALUES (
+  'dev_user_operator',
+  'operator@synesis.local',
+  'development',
+  'dev-user-operator'
+)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO organizations (id, name, environment)

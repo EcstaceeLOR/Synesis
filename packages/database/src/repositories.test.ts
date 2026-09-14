@@ -106,7 +106,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
       WHERE schemaname = 'public' AND tablename <> '_synesis_migrations'
       ORDER BY tablename
     `);
-    expect(tableRows.rows.map((row) => row.tablename)).toHaveLength(21);
+    expect(tableRows.rows.map((row) => row.tablename)).toHaveLength(23);
 
     const indexes = await pool.query<{ indexname: string }>(`
       SELECT indexname FROM pg_indexes
@@ -196,6 +196,27 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
     await expect(
       store.read.events.exists("keeperhub", "will-roll-back"),
     ).resolves.toBe(false);
+  });
+
+  it("rejects membership roles outside the authorization model", async () => {
+    await expect(
+      store.transaction(async (repositories) => {
+        await repositories.organizations.create({
+          id: "invalid_role_org",
+          name: "Invalid role test",
+          environment: "demo",
+        });
+        await repositories.memberships.create({
+          organizationId: "invalid_role_org",
+          userId: "dev_user_operator",
+          role: "superadmin" as never,
+        });
+      }),
+    ).rejects.toThrow();
+
+    await expect(
+      store.read.organizations.findById("invalid_role_org"),
+    ).resolves.toBeUndefined();
   });
 
   it("enforces Olas and KeeperHub economic uniqueness", async () => {
