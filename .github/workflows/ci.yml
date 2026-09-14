@@ -16,6 +16,23 @@ jobs:
   node:
     name: Node quality gates
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: synesis
+          POSTGRES_PASSWORD: synesis
+          POSTGRES_DB: synesis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synesis -d synesis_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://synesis:synesis@localhost:5432/synesis_test
+      SYNESIS_MODE: demo
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -29,6 +46,9 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm --filter @synesis/database db:migrate
+      - run: pnpm --filter @synesis/database db:rollback
+      - run: pnpm --filter @synesis/database db:migrate
       - run: pnpm test
       - run: pnpm build
 
