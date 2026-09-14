@@ -78,3 +78,5 @@ The first production journey is intentionally constrained to Base mainnet, USDC,
 - Contract targets, selectors, amounts, and chain IDs are allowlisted and capped.
 
 See [integration onboarding](docs/INTEGRATION_ONBOARDING.md) for the live dependency checks, encrypted credential boundary, and readiness gate.
+
+All KeeperHub writes must use the [safe-execution client](docs/KEEPERHUB_SAFE_EXECUTION.md), which binds simulation to broadcast with canonical payload hashes and fail-before-network allowlists.
