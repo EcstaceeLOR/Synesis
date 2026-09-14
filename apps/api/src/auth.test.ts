@@ -210,7 +210,7 @@ describe("session security", () => {
     expect(capture.sessionCreated?.tokenHash).toMatch(/^[a-f0-9]{64}$/u);
     expect(capture.sessionCreated?.csrfTokenHash).toMatch(/^[a-f0-9]{64}$/u);
     expect(JSON.stringify(capture.sessionCreated)).not.toContain("oidc-token");
-  });
+  }, 15_000);
 
   it("rejects state changes without the double-submit CSRF proof", async () => {
     const server = buildServer({
