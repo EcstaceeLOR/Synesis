@@ -10,6 +10,17 @@ const migrations = [
     up: new URL("../migrations/0000_initial.up.sql", import.meta.url),
     down: new URL("../migrations/0000_initial.down.sql", import.meta.url),
   },
+  {
+    id: "0001_durable_coordinator",
+    up: new URL(
+      "../migrations/0001_durable_coordinator.up.sql",
+      import.meta.url,
+    ),
+    down: new URL(
+      "../migrations/0001_durable_coordinator.down.sql",
+      import.meta.url,
+    ),
+  },
 ] as const;
 
 export interface MigrationOptions {

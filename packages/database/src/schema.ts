@@ -419,6 +419,59 @@ export const eventInbox = pgTable(
   ],
 );
 
+export const outboxMessages = pgTable(
+  "outbox_messages",
+  {
+    id: text("id").primaryKey(),
+    topic: text("topic").notNull(),
+    aggregateType: text("aggregate_type").notNull(),
+    aggregateId: text("aggregate_id").notNull(),
+    messageKey: text("message_key").notNull().unique(),
+    payload: jsonb("payload").notNull(),
+    traceId: text("trace_id").notNull(),
+    status: text("status")
+      .$type<"pending" | "dispatching" | "published" | "dead">()
+      .notNull()
+      .default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    availableAt: timestamp("available_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .notNull()
+      .defaultNow(),
+    lockedAt: timestamp("locked_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    lockedBy: text("locked_by"),
+    publishedAt: timestamp("published_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("outbox_messages_dispatch_idx")
+      .on(table.availableAt, table.createdAt)
+      .where(sql`${table.status} = 'pending'`),
+    index("outbox_messages_lease_idx")
+      .on(table.lockedAt)
+      .where(sql`${table.status} = 'dispatching'`),
+    index("outbox_messages_aggregate_idx").on(
+      table.aggregateType,
+      table.aggregateId,
+      table.createdAt,
+    ),
+    check("outbox_messages_attempts_check", sql`${table.attempts} >= 0`),
+    check(
+      "outbox_messages_dispatch_lease_check",
+      sql`(${table.status} = 'dispatching' and ${table.lockedAt} is not null and ${table.lockedBy} is not null) or ${table.status} <> 'dispatching'`,
+    ),
+  ],
+);
+
 export const auditEvents = pgTable(
   "audit_events",
   {
@@ -498,6 +551,7 @@ export const synesisTables = {
   keeperHubExecutions,
   transactionReceipts,
   eventInbox,
+  outboxMessages,
   auditEvents,
   proofBundles,
 } as const;

@@ -106,7 +106,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
       WHERE schemaname = 'public' AND tablename <> '_synesis_migrations'
       ORDER BY tablename
     `);
-    expect(tableRows.rows.map((row) => row.tablename)).toHaveLength(20);
+    expect(tableRows.rows.map((row) => row.tablename)).toHaveLength(21);
 
     const indexes = await pool.query<{ indexname: string }>(`
       SELECT indexname FROM pg_indexes
@@ -115,10 +115,11 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
         'keeperhub_executions_successful_purpose_unique',
         'olas_requests_chain_request_unique',
         'event_inbox_source_event_unique',
-        'audit_events_terminal_transition_unique'
+        'audit_events_terminal_transition_unique',
+        'outbox_messages_dispatch_idx'
       )
     `);
-    expect(indexes.rows).toHaveLength(5);
+    expect(indexes.rows).toHaveLength(6);
     await pool.end();
 
     await seedDevelopmentFixtures({
