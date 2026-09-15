@@ -6,6 +6,8 @@ import { encodeAllowedCall, validateCalldata } from "./calldata.js";
 import { assertDeploymentHealth, verifyDeploymentHealth } from "./health.js";
 import {
   BASE_DEPLOYMENT_MANIFEST,
+  BASE_DEPLOYMENT_MANIFEST_UPDATE_AUDIT_EVENT,
+  BASE_DEPLOYMENT_MANIFEST_V1,
   DeploymentManifestError,
   assertManifestReference,
   createManifestUpdate,
@@ -15,7 +17,9 @@ import {
   type Address,
 } from "./manifest.js";
 
-const contract = (id: "OLAS_MARKETPLACE" | "USDC" | "AAVE_POOL") => {
+const contract = (
+  id: "OLAS_MARKETPLACE" | "OLAS_USDC_BALANCE_TRACKER" | "USDC" | "AAVE_POOL",
+) => {
   const match = BASE_DEPLOYMENT_MANIFEST.contracts.find(
     (entry) => entry.id === id,
   );
@@ -31,6 +35,15 @@ const paymentType =
 
 describe("versioned Base deployment manifest", () => {
   it("pins exact official selectors and immutable content", () => {
+    expect(BASE_DEPLOYMENT_MANIFEST_V1.contentHash).toBe(
+      "sha256:e585859ea3792a6838e99aa6eb4047f017001bac4b983b12717d791b1fc6f927",
+    );
+    expect(BASE_DEPLOYMENT_MANIFEST.manifestVersion).toBe("base-2026-09-15.2");
+    expect(BASE_DEPLOYMENT_MANIFEST_UPDATE_AUDIT_EVENT).toMatchObject({
+      action: "deployment_manifest.version_created",
+      previousManifestHash: BASE_DEPLOYMENT_MANIFEST_V1.contentHash,
+      nextManifestHash: BASE_DEPLOYMENT_MANIFEST.contentHash,
+    });
     expect(
       selectorForSignature(
         "request(bytes,uint256,bytes32,address,uint256,bytes)",
@@ -72,7 +85,7 @@ describe("versioned Base deployment manifest", () => {
 
     const result = createManifestUpdate({
       previous: BASE_DEPLOYMENT_MANIFEST,
-      next: { ...content, manifestVersion: "base-2026-09-15.2" },
+      next: { ...content, manifestVersion: "base-2026-09-15.3" },
       actorId: "operator-1",
       reason: "Aave upgrade",
       occurredAt: "2026-09-15T01:00:00.000Z",
@@ -146,6 +159,25 @@ describe("exact calldata allowlist", () => {
         nativeValueWei: "0",
       }).callId,
     ).toBe("USDC_APPROVE");
+
+    const olasApprove = encodeAllowedCall({
+      callId: "USDC_APPROVE",
+      spender: contract("OLAS_USDC_BALANCE_TRACKER").address,
+      amount: "1000000",
+    });
+    expect(
+      validateCalldata({
+        chainId: 8453,
+        target: contract("USDC").address,
+        data: olasApprove,
+        nativeValueWei: "0",
+      }),
+    ).toMatchObject({
+      arguments: {
+        spender: contract("OLAS_USDC_BALANCE_TRACKER").address,
+        amount: "1000000",
+      },
+    });
 
     const supply = encodeAllowedCall({
       callId: "AAVE_SUPPLY",
@@ -231,16 +263,28 @@ const healthManifest = (): {
   readonly manifest: ReturnType<typeof createVersionedManifest>;
   readonly code: Readonly<Record<string, string>>;
 } => {
-  const codes = ["0x60", "0x6001", "0x6002", "0x6003", "0x6004", "0x6005"];
+  const codes = [
+    "0x60",
+    "0x6001",
+    "0x6002",
+    "0x6003",
+    "0x6004",
+    "0x6005",
+    "0x6006",
+  ];
   const code: Record<string, string> = {};
   const { contentHash: _contentHash, ...content } = BASE_DEPLOYMENT_MANIFEST;
   void _contentHash;
-  const contracts = content.contracts.map((entry, index) => {
-    const proxyCode = codes[index * 2];
-    const implementationCode = codes[index * 2 + 1];
-    if (!proxyCode || !implementationCode)
-      throw new Error("Missing fixture code");
+  let codeIndex = 0;
+  const contracts = content.contracts.map((entry) => {
+    const proxyCode = codes[codeIndex++];
+    if (!proxyCode) throw new Error("Missing fixture code");
     code[entry.address] = proxyCode;
+    if (entry.proxy.kind === "NONE") {
+      return { ...entry, runtimeCodeSha256: codeHash(proxyCode) };
+    }
+    const implementationCode = codes[codeIndex++];
+    if (!implementationCode) throw new Error("Missing fixture code");
     code[entry.proxy.implementation] = implementationCode;
     return {
       ...entry,
@@ -280,12 +324,16 @@ describe("startup deployment health", () => {
         const deployment = fixture.manifest.contracts.find(
           (entry) => entry.address === call.to,
         );
-        result = `0x${deployment?.proxy.implementation.slice(2).padStart(64, "0")}`;
+        if (!deployment || deployment.proxy.kind === "NONE")
+          throw new Error("Missing proxy fixture");
+        result = `0x${deployment.proxy.implementation.slice(2).padStart(64, "0")}`;
       } else if (request.method === "eth_getStorageAt") {
         const deployment = fixture.manifest.contracts.find(
           (entry) => entry.address === request.params[0],
         );
-        result = `0x${deployment?.proxy.implementation.slice(2).padStart(64, "0")}`;
+        if (!deployment || deployment.proxy.kind === "NONE")
+          throw new Error("Missing proxy fixture");
+        result = `0x${deployment.proxy.implementation.slice(2).padStart(64, "0")}`;
       }
       return Promise.resolve(
         new Response(
@@ -300,7 +348,7 @@ describe("startup deployment health", () => {
       now: () => Date.parse("2026-09-15T01:00:00.000Z"),
     });
     expect(report.ready).toBe(true);
-    expect(report.checks).toHaveLength(10);
+    expect(report.checks).toHaveLength(11);
   });
 
   it("fails closed when a proxy implementation changes", async () => {

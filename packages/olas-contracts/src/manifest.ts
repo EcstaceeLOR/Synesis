@@ -18,7 +18,7 @@ export interface AbiFunction {
   readonly outputs: readonly AbiInput[];
 }
 
-export interface ProxyExpectation {
+export interface ProxiedExpectation {
   readonly kind: "CALL" | "EIP1967";
   readonly implementation: Address;
   readonly implementationCodeSha256: string;
@@ -26,8 +26,15 @@ export interface ProxyExpectation {
   readonly storageSlot?: Hex;
 }
 
+export interface DirectExpectation {
+  readonly kind: "NONE";
+}
+
+export type ProxyExpectation = ProxiedExpectation | DirectExpectation;
+
 export interface ContractDeployment {
-  readonly id: "OLAS_MARKETPLACE" | "USDC" | "AAVE_POOL";
+  readonly id:
+    "OLAS_MARKETPLACE" | "OLAS_USDC_BALANCE_TRACKER" | "USDC" | "AAVE_POOL";
   readonly address: Address;
   readonly runtimeCodeSha256: string;
   readonly proxy: ProxyExpectation;
@@ -46,6 +53,14 @@ export type CallConstraint =
       readonly kind: "USDC_APPROVE_AAVE";
       readonly spender: Address;
       readonly maxAmountBaseUnits: string;
+    }
+  | {
+      readonly kind: "USDC_APPROVE_BOUNDED_SPENDERS";
+      readonly spenders: readonly {
+        readonly address: Address;
+        readonly purpose: "OLAS_PAYMENT" | "AAVE_SUPPLY";
+        readonly maxAmountBaseUnits: string;
+      }[];
     }
   | {
       readonly kind: "AAVE_SUPPLY_USDC";
@@ -179,14 +194,14 @@ const validateContent = (content: DeploymentManifestContent): void => {
     }
     contractIds.add(contract.id);
     addresses.add(address);
+    if (contract.proxy.kind === "NONE") continue;
     if (
       !addressPattern.test(contract.proxy.implementation) ||
       !hashPattern.test(contract.proxy.implementationCodeSha256)
-    ) {
+    )
       throw new DeploymentManifestError(
         `${contract.id} proxy expectation is malformed`,
       );
-    }
     if (
       contract.proxy.kind === "CALL" &&
       !contract.proxy.resolver?.match(/^0x[\da-f]{8}$/iu)
@@ -223,6 +238,28 @@ const validateContent = (content: DeploymentManifestContent): void => {
       throw new DeploymentManifestError(
         `${call.id} ABI must contain one exact function`,
       );
+    }
+    if (call.constraint.kind === "USDC_APPROVE_BOUNDED_SPENDERS") {
+      const spenders = new Set<string>();
+      for (const bound of call.constraint.spenders) {
+        const address = bound.address.toLowerCase();
+        if (
+          !addressPattern.test(address) ||
+          !/^\d+$/u.test(bound.maxAmountBaseUnits) ||
+          BigInt(bound.maxAmountBaseUnits) <= 0n ||
+          spenders.has(address)
+        ) {
+          throw new DeploymentManifestError(
+            "USDC spender bounds must be unique, positive, and well formed",
+          );
+        }
+        spenders.add(address);
+      }
+      if (spenders.size === 0) {
+        throw new DeploymentManifestError(
+          "USDC spender bounds cannot be empty",
+        );
+      }
     }
     const key = `${call.contractId}:${call.selector.toLowerCase()}`;
     if (callKeys.has(key)) {
@@ -311,7 +348,7 @@ const functionAbi = (
 const EIP1967_IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc" as const;
 
-const manifestContent = {
+const manifestContentV1 = {
   schemaVersion: "1.0",
   manifestVersion: "base-2026-09-15.1",
   chain: { id: 8453, name: "Base mainnet" },
@@ -425,8 +462,63 @@ const manifestContent = {
   ],
 } as const satisfies DeploymentManifestContent;
 
-export const BASE_DEPLOYMENT_MANIFEST =
-  createVersionedManifest(manifestContent);
+export const BASE_DEPLOYMENT_MANIFEST_V1 =
+  createVersionedManifest(manifestContentV1);
+
+const manifestContentV2 = {
+  ...manifestContentV1,
+  manifestVersion: "base-2026-09-15.2",
+  createdAt: "2026-09-15T02:30:00.000Z",
+  sources: {
+    ...manifestContentV1.sources,
+    olasMechClientRevision: "28115ed8e88aa4bbbdde709ff14fdc63e63cef37",
+  },
+  contracts: [
+    ...manifestContentV1.contracts,
+    {
+      id: "OLAS_USDC_BALANCE_TRACKER",
+      address: "0x0443c55e151dba13fae079518f9dd01ff9c21cb2",
+      runtimeCodeSha256:
+        "sha256:953ecd1c06d4f50e0ffe60c79ce0ce999237f0d8812f07fd10df5aae5d0e6834",
+      proxy: { kind: "NONE" },
+    },
+  ],
+  allowedCalls: manifestContentV1.allowedCalls.map((call) =>
+    call.id === "USDC_APPROVE"
+      ? {
+          ...call,
+          constraint: {
+            kind: "USDC_APPROVE_BOUNDED_SPENDERS" as const,
+            spenders: [
+              {
+                address: "0x0443c55e151dba13fae079518f9dd01ff9c21cb2" as const,
+                purpose: "OLAS_PAYMENT" as const,
+                maxAmountBaseUnits: "1000000",
+              },
+              {
+                address: "0xa238dd80c259a72e81d7e4664a9801593f98d1c5" as const,
+                purpose: "AAVE_SUPPLY" as const,
+                maxAmountBaseUnits: "10000000000",
+              },
+            ],
+          },
+        }
+      : call,
+  ),
+} as const satisfies DeploymentManifestContent;
+
+const baseManifestUpdate = createManifestUpdate({
+  previous: BASE_DEPLOYMENT_MANIFEST_V1,
+  next: manifestContentV2,
+  actorId: "synesis:issue-12",
+  reason:
+    "Pin the official Olas USDC payment tracker used by mech-client 0.22.0",
+  occurredAt: manifestContentV2.createdAt,
+});
+
+export const BASE_DEPLOYMENT_MANIFEST = baseManifestUpdate.manifest;
+export const BASE_DEPLOYMENT_MANIFEST_UPDATE_AUDIT_EVENT =
+  baseManifestUpdate.auditEvent;
 
 export const EMPTY_BASE_MANIFEST: DeploymentManifest = {
   chainId: 8453,
