@@ -711,30 +711,42 @@ export class SafeExecutionClient {
     identity: RequestIdentity,
     maxPolls = 60,
   ): Promise<KeeperHubEvidence> {
-    if (!/^[\w-]{6,128}$/u.test(executionId))
-      throw new SafeExecutionPolicyError("executionId is invalid");
     for (let attempt = 0; attempt < maxPolls; attempt += 1) {
-      const result = await this.#request(
-        `/api/execute/${encodeURIComponent(executionId)}/status`,
-        "GET",
-        undefined,
+      const evidence = await this.getExecutionStatus(
+        executionId,
+        context,
         identity,
       );
-      const evidence = this.#evidence(
-        "status",
-        { ...context, idempotencyKey: context.idempotencyKey ?? "" },
-        identity,
-        result,
-        Boolean(context.idempotencyKey),
-      );
-      if (result.pollAfterMs === 0) return evidence;
-      await this.#sleep(result.pollAfterMs ?? 2_000);
+      if (evidence.pollAfterMs === 0) return evidence;
+      await this.#sleep(evidence.pollAfterMs ?? 2_000);
     }
     throw new KeeperHubExecutionError(
       "KeeperHub execution did not reach a terminal status before the poll limit",
       504,
       { executionId },
       {},
+    );
+  }
+
+  public async getExecutionStatus(
+    executionId: string,
+    context: Pick<KeeperHubEvidence, "payloadHash" | "idempotencyKey">,
+    identity: RequestIdentity,
+  ): Promise<KeeperHubEvidence> {
+    if (!/^[\w-]{6,128}$/u.test(executionId))
+      throw new SafeExecutionPolicyError("executionId is invalid");
+    const result = await this.#request(
+      `/api/execute/${encodeURIComponent(executionId)}/status`,
+      "GET",
+      undefined,
+      identity,
+    );
+    return this.#evidence(
+      "status",
+      { ...context, idempotencyKey: context.idempotencyKey ?? "" },
+      identity,
+      result,
+      Boolean(context.idempotencyKey),
     );
   }
 }

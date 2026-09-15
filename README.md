@@ -80,3 +80,5 @@ The first production journey is intentionally constrained to Base mainnet, USDC,
 See [integration onboarding](docs/INTEGRATION_ONBOARDING.md) for the live dependency checks, encrypted credential boundary, and readiness gate.
 
 All KeeperHub writes must use the [safe-execution client](docs/KEEPERHUB_SAFE_EXECUTION.md), which binds simulation to broadcast with canonical payload hashes and fail-before-network allowlists.
+
+Completed writes pass through [independent receipt verification](docs/KEEPERHUB_RECEIPT_VERIFICATION.md), which freezes unconfirmed intents, reconciles the same execution ID, and requires KeeperHub and Base receipt hashes to agree.
