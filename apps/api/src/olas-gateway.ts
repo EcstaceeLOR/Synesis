@@ -420,6 +420,15 @@ export class OlasKeeperHubGateway {
     let executionId = reservation.execution.executionId;
     let expectedTransactionHash: Hex | undefined;
     if (reservation.created) {
+      const organization = await this.#store.read.organizations.findById(
+        intent.organizationId,
+      );
+      if (organization?.pausedAt)
+        throw new OlasGatewayError(
+          "ORGANIZATION_PAUSED",
+          "Emergency pause is active; KeeperHub broadcast is blocked",
+          409,
+        );
       const broadcast = await clients.execution.broadcastContractCall(
         call,
         simulation,
