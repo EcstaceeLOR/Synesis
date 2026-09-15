@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "synesis.keeperhub.workflow.v1",
+  "name": "synesis-olas-delivery-proof",
+  "chainId": 8453,
+  "trigger": {
+    "kind": "contract_event",
+    "contract": "OLAS_MARKETPLACE",
+    "event": "MarketplaceRequest(address,address,uint256,bytes32[],bytes[])"
+  },
+  "filter": "requester == synesis_wallet",
+  "action": {
+    "kind": "signed_webhook",
+    "url": "${SYNESIS_DELIVERY_WEBHOOK_URL}",
+    "signature": "HMAC-SHA256(canonical_json_body)",
+    "headers": ["x-synesis-signature", "x-synesis-event"]
+  },
+  "body": [
+    "type",
+    "requestId",
+    "deliveryReference",
+    "block",
+    "transactionHash",
+    "timestamp",
+    "nonce",
+    "body"
+  ],
+  "replayWindowSeconds": 300,
+  "valueWei": "0",
+  "sourceOfTruth": "packages/olas-contracts/src/manifest.ts"
+}
