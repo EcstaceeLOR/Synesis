@@ -114,6 +114,28 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     ),
   );
 
+  server.get("/api/v1/activity", () => ({
+    events: [],
+    source: "persisted-lifecycle",
+    updatedAt: new Date().toISOString(),
+  }));
+  server.get("/api/v1/activity/stream", async (_request, reply) => {
+    reply.raw.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    });
+    reply.raw.write(
+      `data: ${JSON.stringify({ message: "Synesis activity stream connected" })}\n\n`,
+    );
+    const heartbeat = setInterval(
+      () => reply.raw.write(`: heartbeat ${Date.now()}\n\n`),
+      15_000,
+    );
+    reply.raw.on("close", () => clearInterval(heartbeat));
+    return reply;
+  });
+
   server.post<{ Body: unknown }>(
     "/internal/v1/keeperhub/submit-call",
     async (request, reply) => {

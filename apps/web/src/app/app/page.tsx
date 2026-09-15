@@ -1,6 +1,12 @@
 import { ProductPage } from "../../components/product-page";
 import { loadProductPage } from "../../lib/page-data";
+import { LiveActivityStream } from "../../components/live-activity-stream";
 
 export default async function CommandCenterPage() {
-  return <ProductPage state={await loadProductPage("command-center")} />;
+  return (
+    <>
+      <LiveActivityStream />
+      <ProductPage state={await loadProductPage("command-center")} />
+    </>
+  );
 }
