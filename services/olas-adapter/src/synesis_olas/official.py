@@ -6,7 +6,7 @@ from dataclasses import asdict
 from typing import Any, cast
 
 from synesis_olas.errors import AdapterError
-from synesis_olas.models import NormalizedMech
+from synesis_olas.models import InspectedMech, NormalizedMech
 from synesis_olas.normalization import normalize_discovery
 
 PINNED_MECH_CLIENT_VERSION = "0.22.0"
@@ -58,6 +58,61 @@ class OfficialMechClient:
             agent_mode=False,
             signer=signer,
         )
+
+    def inspect_mech(self, mech: NormalizedMech) -> InspectedMech:
+        """Read contract identity/payment facts and pinned complementary metadata."""
+
+        try:
+            config_module = self._module("mech_client.infrastructure.config")
+            blockchain = self._module("mech_client.infrastructure.blockchain.contracts")
+            abi_loader = self._module("mech_client.infrastructure.blockchain.abi_loader")
+            ethereum = self._module("aea_ledger_ethereum")
+            tool_module = self._module("mech_client.services.tool_service")
+            config = config_module.get_mech_config("base")
+            ledger = ethereum.EthereumApi(**asdict(config.ledger_config))
+            code = bytes(ledger.api.eth.get_code(mech.address))
+            if not code:
+                return InspectedMech(contract_active=False)
+            contract = blockchain.get_contract(
+                mech.address, abi_loader.get_abi("IMech.json"), ledger
+            )
+            payment_bytes = contract.functions.paymentType().call()
+            payment = config_module.PaymentType.from_value(payment_bytes.hex())
+            service_id = int(contract.functions.serviceId().call())
+            rate = int(contract.functions.maxDeliveryRate().call())
+
+            metadata: dict[str, Any] = {}
+            if mech.metadata_cid:
+                manager = tool_module.ToolService("base").tool_manager
+                discovered = manager.fetch_tools_metadata(mech.service_id)
+                if isinstance(discovered, dict):
+                    metadata = discovered
+            advertised = metadata.get("tools", ())
+            tool_metadata = metadata.get("toolMetadata", {})
+            schemas: dict[str, dict[str, Any]] = {}
+            if isinstance(advertised, list) and isinstance(tool_metadata, dict):
+                for tool in advertised:
+                    details = tool_metadata.get(tool)
+                    if isinstance(tool, str) and isinstance(details, dict):
+                        schemas[tool] = {
+                            "name": tool,
+                            "description": str(details.get("description", "")),
+                            "input": details.get("input", {}),
+                            "output": details.get("output", {}),
+                        }
+            return InspectedMech(
+                contract_active=True,
+                onchain_service_id=service_id,
+                payment_type=payment.name,
+                unit_amount=rate,
+                name=str(metadata["name"]) if metadata.get("name") else None,
+                description=(str(metadata["description"]) if metadata.get("description") else None),
+                tool_schemas=schemas,
+            )
+        except Exception as exc:
+            raise AdapterError(
+                "OLAS_INSPECTION_FAILED", "Official Olas Mech inspection failed", 502
+            ) from exc
 
     def quote_details(self, mech: NormalizedMech, tool: str) -> tuple[str, int, dict[str, Any]]:
         """Read payment facts with official config, ABI, contracts, and ToolService."""

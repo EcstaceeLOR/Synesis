@@ -28,6 +28,97 @@ class NormalizedMech(StrictModel):
     kind: MechKind
     total_deliveries: int = Field(default=0, ge=0)
     tools: tuple[str, ...] = ()
+    metadata_cid: str | None = Field(default=None, pattern=r"^f[0-9a-f]+$")
+
+
+class InspectedMech(StrictModel):
+    """Raw live contract and metadata facts returned by the official client."""
+
+    contract_active: bool
+    onchain_service_id: int | None = Field(default=None, ge=1)
+    payment_type: str | None = None
+    unit_amount: int | None = Field(default=None, ge=0)
+    name: str | None = None
+    description: str | None = None
+    tool_schemas: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+class CompatibilityReason(StrictModel):
+    code: str
+    message: str
+
+
+class ToolSnapshot(StrictModel):
+    name: str = Field(min_length=1, max_length=128)
+    description: str = Field(default="", max_length=2_000)
+    input_schema: dict[str, Any]
+    output_schema: dict[str, Any]
+    schema_hash: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+
+
+class DiscoveredMech(StrictModel):
+    chain_id: Literal[8453]
+    address: Address
+    service_id: int = Field(ge=1)
+    factory_address: Address | None = None
+    name: str
+    description: str
+    metadata_cid: str | None = None
+    payment_type: str | None = None
+    unit_amount: int | None = Field(default=None, ge=0)
+    payment_decimals: int = Field(ge=0, le=18)
+    total_deliveries: int = Field(ge=0)
+    health: Literal["active", "degraded", "inactive"]
+    eligible: bool
+    compatibility_score: int = Field(ge=0, le=100)
+    reasons: tuple[CompatibilityReason, ...]
+    tools: tuple[ToolSnapshot, ...]
+    observed_at: datetime
+    observed_version: str
+
+
+class MechDirectory(StrictModel):
+    chain_id: Literal[8453]
+    status: Literal["ready", "degraded", "empty"]
+    source: Literal["olas-mech-client"]
+    observed_at: datetime
+    observed_version: str
+    mechs: tuple[DiscoveredMech, ...]
+
+
+class MechSelection(StrictModel):
+    mech_address: Address
+    tool: str = Field(min_length=1, max_length=128)
+
+
+class FreezeMechSelectionRequest(StrictModel):
+    selections: tuple[MechSelection, MechSelection]
+
+    @field_validator("selections")
+    @classmethod
+    def require_independent_mechs(
+        cls, value: tuple[MechSelection, MechSelection]
+    ) -> tuple[MechSelection, MechSelection]:
+        if value[0].mech_address.lower() == value[1].mech_address.lower():
+            raise ValueError("Selected Mechs must be independent")
+        return value
+
+
+class FrozenMechSelection(StrictModel):
+    mech_address: Address
+    service_id: int = Field(ge=1)
+    metadata_cid: str = Field(pattern=r"^f[0-9a-f]+$")
+    tool: str
+    tool_schema_hash: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    observed_version: str
+    observed_at: datetime
+
+
+class FrozenMechSelectionBundle(StrictModel):
+    schema_version: Literal["synesis.mech-selection.v1"]
+    chain_id: Literal[8453]
+    snapshot_hash: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    selections: tuple[FrozenMechSelection, FrozenMechSelection]
 
 
 class QuoteRequest(StrictModel):

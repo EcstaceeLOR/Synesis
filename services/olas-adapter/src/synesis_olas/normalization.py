@@ -31,6 +31,19 @@ def _tools(record: Mapping[str, Any], service: Mapping[str, Any]) -> tuple[str, 
     return tuple(item for item in candidates if isinstance(item, str) and item)
 
 
+def _metadata_cid(service: Mapping[str, Any]) -> str | None:
+    wrappers = service.get("metadata")
+    if not isinstance(wrappers, Sequence) or isinstance(wrappers, str | bytes):
+        return None
+    for wrapper in wrappers:
+        metadata_hash = _mapping(wrapper).get("metadata")
+        if isinstance(metadata_hash, str):
+            value = metadata_hash.removeprefix("0x").lower()
+            if len(value) == 64 and any(character != "0" for character in value):
+                return "f01701220" + value
+    return None
+
+
 def normalize_mech(record: Mapping[str, Any]) -> NormalizedMech:
     """Collapse Olas marketplace and legacy aliases into one strict model."""
 
@@ -52,6 +65,7 @@ def normalize_mech(record: Mapping[str, Any]) -> NormalizedMech:
             kind=MechKind.MARKETPLACE if is_marketplace else MechKind.LEGACY,
             total_deliveries=deliveries,
             tools=_tools(record, service),
+            metadata_cid=_metadata_cid(service),
         )
     except ValidationError as exc:
         raise AdapterError(

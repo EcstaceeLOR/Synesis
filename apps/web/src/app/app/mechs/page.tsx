@@ -1,6 +1,6 @@
-import { ProductPage } from "../../../components/product-page";
-import { loadProductPage } from "../../../lib/page-data";
+import { MechMarketplace } from "../../../components/mech-marketplace";
+import { loadMechDirectory } from "../../../lib/mech-data";
 
 export default async function MechsPage() {
-  return <ProductPage state={await loadProductPage("mechs")} />;
+  return <MechMarketplace state={await loadMechDirectory()} />;
 }

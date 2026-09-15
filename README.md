@@ -86,3 +86,5 @@ Completed writes pass through [independent receipt verification](docs/KEEPERHUB_
 Every value-moving call must also match the [versioned Base deployment manifest](docs/DEPLOYMENT_MANIFEST.md), including pinned proxy implementations, bytecode hashes, exact ABI selectors, and hard spending bounds.
 
 The private [keyless Olas adapter](services/olas-adapter/README.md) pins the official Mech Client, normalizes current and legacy Mechs, publishes request envelopes, and produces KeeperHub-only transaction plans without exposing a signing key.
+
+The live Mech marketplace is served from `GET /api/v1/mechs`. It preserves ineligible onchain providers with machine-readable reasons, exposes immutable tool-schema hashes, and refuses to fabricate demo fallbacks. Intent selections bind two distinct addresses to their metadata CIDs and observed manifest version before procurement begins.

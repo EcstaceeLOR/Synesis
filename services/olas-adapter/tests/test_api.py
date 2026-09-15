@@ -9,7 +9,7 @@ from pydantic import SecretStr, ValidationError
 
 from synesis_olas.config import Settings
 from synesis_olas.main import create_app
-from synesis_olas.models import MechKind, NormalizedMech
+from synesis_olas.models import InspectedMech, MechKind, NormalizedMech
 from synesis_olas.service import OlasAdapterService
 
 TOKEN = "internal-test-token-with-32-characters"
@@ -27,7 +27,22 @@ class ApiOlasClient:
                 service_id=7,
                 kind=MechKind.LEGACY,
                 tools=("prediction",),
+                metadata_cid="f01701220" + "66" * 32,
             ),
+        )
+
+    def inspect_mech(self, mech: NormalizedMech) -> InspectedMech:
+        return InspectedMech(
+            contract_active=True,
+            onchain_service_id=mech.service_id,
+            payment_type="USDC_TOKEN",
+            unit_amount=10_000,
+            tool_schemas={
+                "prediction": {
+                    "input": {"type": "string"},
+                    "output": {"type": "object"},
+                }
+            },
         )
 
     def quote_details(self, _mech: NormalizedMech, _tool: str) -> tuple[str, int, dict[str, Any]]:
@@ -72,6 +87,7 @@ def test_typed_health_quote_plan_and_delivery_contracts() -> None:
     headers = {"Authorization": f"Bearer {TOKEN}"}
 
     health = api.get("/internal/v1/health", headers=headers)
+    mechs = api.get("/internal/v1/mechs", headers=headers)
     quote = api.post(
         "/internal/v1/quotes",
         headers=headers,
@@ -100,6 +116,9 @@ def test_typed_health_quote_plan_and_delivery_contracts() -> None:
 
     assert health.status_code == 200
     assert health.json()["capabilities"]["local_private_key"] is False
+    assert mechs.status_code == 200
+    assert mechs.json()["mechs"][0]["eligible"] is False
+    assert mechs.json()["mechs"][0]["reasons"][0]["code"] == "UNSUPPORTED_SIGNING_MODE"
     assert quote.status_code == 200
     assert quote.json()["maximum_amount"] == 10_000
     assert plan.status_code == 200

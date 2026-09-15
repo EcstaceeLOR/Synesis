@@ -9,6 +9,7 @@ import {
   type IdentityVerifier,
 } from "./auth.js";
 import { EnvelopeEncryption, IntegrationService } from "./integrations.js";
+import { OlasMechDirectoryClient, type MechDirectoryReader } from "./mechs.js";
 
 export interface BuildServerOptions {
   readonly store?: SynesisStore;
@@ -17,6 +18,7 @@ export interface BuildServerOptions {
   readonly secureCookies?: boolean;
   readonly now?: () => Date;
   readonly integrationService?: IntegrationService;
+  readonly mechDirectory?: MechDirectoryReader;
 }
 
 export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
@@ -57,6 +59,14 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
             : {}),
         })
       : undefined);
+  const mechDirectory =
+    options.mechDirectory ??
+    (process.env.OLAS_ADAPTER_URL && process.env.OLAS_ADAPTER_INTERNAL_TOKEN
+      ? new OlasMechDirectoryClient({
+          origin: process.env.OLAS_ADAPTER_URL,
+          token: process.env.OLAS_ADAPTER_INTERNAL_TOKEN,
+        })
+      : undefined);
 
   server.register(cors, {
     origin: [...allowedOrigins],
@@ -83,6 +93,57 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     ...(options.now ? { now: options.now } : {}),
     ...(integrationService ? { integrationService } : {}),
   });
+
+  server.get("/api/v1/mechs", async (_request, reply) => {
+    if (!mechDirectory)
+      return reply.status(503).send({
+        code: "OLAS_ADAPTER_UNCONFIGURED",
+        message: "Live Olas discovery is not configured",
+      });
+    try {
+      return await mechDirectory.read();
+    } catch {
+      return reply.status(503).send({
+        code: "OLAS_DISCOVERY_UNAVAILABLE",
+        message: "Live Olas discovery is temporarily unavailable",
+      });
+    }
+  });
+
+  server.get<{ Params: { address: string } }>(
+    "/api/v1/mechs/:address",
+    async (request, reply) => {
+      if (!/^0x[0-9a-fA-F]{40}$/u.test(request.params.address))
+        return reply.status(400).send({
+          code: "INVALID_MECH_ADDRESS",
+          message: "A full EVM Mech address is required",
+        });
+      if (!mechDirectory)
+        return reply.status(503).send({
+          code: "OLAS_ADAPTER_UNCONFIGURED",
+          message: "Live Olas discovery is not configured",
+        });
+      try {
+        const directory = await mechDirectory.read();
+        const mech = directory.mechs.find(
+          (candidate) =>
+            candidate.address.toLowerCase() ===
+            request.params.address.toLowerCase(),
+        );
+        if (!mech)
+          return reply.status(404).send({
+            code: "MECH_NOT_DISCOVERED",
+            message: "The Mech is not in the current Base discovery result",
+          });
+        return mech;
+      } catch {
+        return reply.status(503).send({
+          code: "OLAS_DISCOVERY_UNAVAILABLE",
+          message: "Live Olas discovery is temporarily unavailable",
+        });
+      }
+    },
+  );
 
   if (ownedStore) {
     server.addHook("onClose", async () => ownedStore.close());

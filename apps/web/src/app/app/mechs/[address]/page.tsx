@@ -1,5 +1,5 @@
-import { ProductPage } from "../../../../components/product-page";
-import { loadProductPage } from "../../../../lib/page-data";
+import { MechProfile } from "../../../../components/mech-profile";
+import { loadMech } from "../../../../lib/mech-data";
 
 export default async function MechDetailPage({
   params,
@@ -7,5 +7,5 @@ export default async function MechDetailPage({
   readonly params: Promise<{ address: string }>;
 }) {
   const { address } = await params;
-  return <ProductPage state={await loadProductPage("mech-detail", address)} />;
+  return <MechProfile state={await loadMech(address)} />;
 }

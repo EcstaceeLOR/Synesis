@@ -386,6 +386,13 @@ export const intentMechs = pgTable(
       .notNull()
       .references(() => mechs.id),
     toolId: text("tool_id").notNull(),
+    metadataCid: text("metadata_cid").notNull(),
+    toolSchemaHash: text("tool_schema_hash").notNull(),
+    observedVersion: text("observed_version").notNull(),
+    observedAt: timestamp("observed_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
     quotedPrice: amount("quoted_price").notNull(),
     requestCid: text("request_cid").notNull(),
     createdAt: createdAt(),
