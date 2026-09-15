@@ -63,14 +63,18 @@ interface ExecutionClients {
     "simulateContractCall" | "broadcastContractCall"
   >;
   readonly receipt: {
-    reconcile(input: Parameters<ReceiptVerificationClient["reconcile"]>[0]): Promise<ReceiptReconciliationResult>;
+    reconcile(
+      input: Parameters<ReceiptVerificationClient["reconcile"]>[0],
+    ): Promise<ReceiptReconciliationResult>;
   };
 }
 
 export interface OlasKeeperHubGatewayOptions {
   readonly store: SynesisStore;
   readonly mechDirectory: MechDirectoryReader;
-  readonly loadCredentials: (organizationId: string) => Promise<ExecutionCredentials>;
+  readonly loadCredentials: (
+    organizationId: string,
+  ) => Promise<ExecutionCredentials>;
   readonly keeperHubOrigin?: string;
   readonly fetch?: typeof globalThis.fetch;
   readonly now?: () => Date;
@@ -87,13 +91,19 @@ const txPattern = /^0x[\da-f]{64}$/iu;
 
 const address = (value: unknown, label: string): Address => {
   if (typeof value !== "string" || !addressPattern.test(value))
-    throw new OlasGatewayError("INVALID_CALL", `${label} must be an EVM address`);
+    throw new OlasGatewayError(
+      "INVALID_CALL",
+      `${label} must be an EVM address`,
+    );
   return value.toLowerCase() as Address;
 };
 
 export const parseOlasGatewayInput = (value: unknown): OlasGatewayInput => {
   if (typeof value !== "object" || value === null || Array.isArray(value))
-    throw new OlasGatewayError("INVALID_CALL", "Gateway input must be an object");
+    throw new OlasGatewayError(
+      "INVALID_CALL",
+      "Gateway input must be an object",
+    );
   const input = value as Record<string, unknown>;
   const allowed = new Set([
     "economicIntentId",
@@ -109,7 +119,10 @@ export const parseOlasGatewayInput = (value: unknown): OlasGatewayInput => {
     "data",
   ]);
   if (Object.keys(input).some((key) => !allowed.has(key)))
-    throw new OlasGatewayError("INVALID_CALL", "Gateway input contains unknown fields");
+    throw new OlasGatewayError(
+      "INVALID_CALL",
+      "Gateway input contains unknown fields",
+    );
   if (
     typeof input.economicIntentId !== "string" ||
     input.economicIntentId.length < 3 ||
@@ -154,12 +167,21 @@ const manifestRule = (call: DecodedAllowedCall) => {
   const rule = BASE_DEPLOYMENT_MANIFEST.allowedCalls.find(
     (candidate) => candidate.id === call.callId,
   );
-  if (!rule) throw new OlasGatewayError("MANIFEST_RULE_MISSING", "Call rule is missing", 500);
+  if (!rule)
+    throw new OlasGatewayError(
+      "MANIFEST_RULE_MISSING",
+      "Call rule is missing",
+      500,
+    );
   const contract = BASE_DEPLOYMENT_MANIFEST.contracts.find(
     (candidate) => candidate.id === rule.contractId,
   );
   if (!contract)
-    throw new OlasGatewayError("MANIFEST_TARGET_MISSING", "Call target is missing", 500);
+    throw new OlasGatewayError(
+      "MANIFEST_TARGET_MISSING",
+      "Call target is missing",
+      500,
+    );
   return { rule, contract };
 };
 
@@ -243,14 +265,18 @@ export class OlasKeeperHubGateway {
         const credentials = await options.loadCredentials(organizationId);
         const keeperHub = new KeeperHubClient({
           apiKey: credentials.keeperHubApiKey,
-          ...(options.keeperHubOrigin ? { apiOrigin: options.keeperHubOrigin } : {}),
+          ...(options.keeperHubOrigin
+            ? { apiOrigin: options.keeperHubOrigin }
+            : {}),
           ...(options.fetch ? { fetch: options.fetch } : {}),
         });
         const wallet = await keeperHub.getWallet();
         const execution = new SafeExecutionClient({
           apiKey: credentials.keeperHubApiKey,
           policy,
-          ...(options.keeperHubOrigin ? { apiOrigin: options.keeperHubOrigin } : {}),
+          ...(options.keeperHubOrigin
+            ? { apiOrigin: options.keeperHubOrigin }
+            : {}),
           ...(options.fetch ? { fetch: options.fetch } : {}),
         });
         return {
@@ -265,28 +291,61 @@ export class OlasKeeperHubGateway {
       });
   }
 
-  public async submit(raw: unknown, traceId: string): Promise<OlasGatewayReceipt> {
+  public async submit(
+    raw: unknown,
+    traceId: string,
+  ): Promise<OlasGatewayReceipt> {
     const input = parseOlasGatewayInput(raw);
     if (
       input.manifestVersion !== BASE_DEPLOYMENT_MANIFEST.manifestVersion ||
       input.manifestHash !== BASE_DEPLOYMENT_MANIFEST.contentHash
     ) {
-      throw new OlasGatewayError("MANIFEST_MISMATCH", "The Olas plan uses a stale manifest", 409);
+      throw new OlasGatewayError(
+        "MANIFEST_MISMATCH",
+        "The Olas plan uses a stale manifest",
+        409,
+      );
     }
-    const intent = await this.#store.read.intents.findById(input.economicIntentId);
-    if (!intent || !["PROCUREMENT_READY", "PROCUREMENT_EXECUTING"].includes(intent.state))
-      throw new OlasGatewayError("INTENT_NOT_READY", "Intent is not approved for procurement", 409);
-    const intentMech = await this.#store.read.intentMechs.findByIntentAndMechAddress(
-      intent.id,
-      input.mechAddress,
+    const intent = await this.#store.read.intents.findById(
+      input.economicIntentId,
     );
+    if (
+      !intent ||
+      !["PROCUREMENT_READY", "PROCUREMENT_EXECUTING"].includes(intent.state)
+    )
+      throw new OlasGatewayError(
+        "INTENT_NOT_READY",
+        "Intent is not approved for procurement",
+        409,
+      );
+    const intentMech =
+      await this.#store.read.intentMechs.findByIntentAndMechAddress(
+        intent.id,
+        input.mechAddress,
+      );
     if (!intentMech)
-      throw new OlasGatewayError("MECH_NOT_SELECTED", "Mech is not frozen into this intent", 403);
+      throw new OlasGatewayError(
+        "MECH_NOT_SELECTED",
+        "Mech is not frozen into this intent",
+        403,
+      );
     if (BigInt(input.approvedMaximumAmount) !== BigInt(intentMech.quotedPrice))
-      throw new OlasGatewayError("APPROVAL_MISMATCH", "Approved maximum differs from the frozen quote", 409);
+      throw new OlasGatewayError(
+        "APPROVAL_MISMATCH",
+        "Approved maximum differs from the frozen quote",
+        409,
+      );
     const directory = await this.#directory.read();
-    if (!directory.mechs.some((mech) => mech.eligible && mech.address === input.mechAddress))
-      throw new OlasGatewayError("MECH_NOT_ELIGIBLE", "Mech is no longer eligible", 409);
+    if (
+      !directory.mechs.some(
+        (mech) => mech.eligible && mech.address === input.mechAddress,
+      )
+    )
+      throw new OlasGatewayError(
+        "MECH_NOT_ELIGIBLE",
+        "Mech is no longer eligible",
+        409,
+      );
     const decoded = validateCalldata({
       chainId: input.chainId,
       target: input.to,
@@ -296,26 +355,50 @@ export class OlasKeeperHubGateway {
     });
     if (
       decoded.callId === "OLAS_REQUEST" &&
-      BigInt(decoded.arguments.maxDeliveryRate) > BigInt(input.approvedMaximumAmount)
+      BigInt(decoded.arguments.maxDeliveryRate) >
+        BigInt(input.approvedMaximumAmount)
     )
-      throw new OlasGatewayError("SPEND_EXCEEDS_APPROVAL", "Request exceeds the approved maximum");
+      throw new OlasGatewayError(
+        "SPEND_EXCEEDS_APPROVAL",
+        "Request exceeds the approved maximum",
+      );
     if (
       decoded.callId === "USDC_APPROVE" &&
       BigInt(decoded.arguments.amount) !== BigInt(input.approvedMaximumAmount)
     )
-      throw new OlasGatewayError("APPROVAL_NOT_EXACT", "USDC approval must equal the frozen maximum");
+      throw new OlasGatewayError(
+        "APPROVAL_NOT_EXACT",
+        "USDC approval must equal the frozen maximum",
+      );
     if (decoded.callId === "AAVE_SUPPLY")
-      throw new OlasGatewayError("WRONG_GATEWAY_PURPOSE", "Olas gateway cannot execute Aave supply");
+      throw new OlasGatewayError(
+        "WRONG_GATEWAY_PURPOSE",
+        "Olas gateway cannot execute Aave supply",
+      );
 
     const policy = executionPolicy(decoded, input.approvedMaximumAmount);
-    const clients = await this.#createClients!({ organizationId: intent.organizationId, policy });
+    const clients = await this.#createClients!({
+      organizationId: intent.organizationId,
+      policy,
+    });
     if (clients.walletAddress !== input.from)
-      throw new OlasGatewayError("WALLET_MISMATCH", "Call sender is not the KeeperHub organization wallet", 403);
+      throw new OlasGatewayError(
+        "WALLET_MISMATCH",
+        "Call sender is not the KeeperHub organization wallet",
+        403,
+      );
     const call = safeCall(input, decoded);
     const identity = { requestId: randomUUID(), traceId };
-    const simulation = await clients.execution.simulateContractCall(call, identity);
+    const simulation = await clients.execution.simulateContractCall(
+      call,
+      identity,
+    );
     if (!simulation.approvedForBroadcast)
-      throw new OlasGatewayError("SIMULATION_REJECTED", "KeeperHub simulation rejected the call", 409);
+      throw new OlasGatewayError(
+        "SIMULATION_REJECTED",
+        "KeeperHub simulation rejected the call",
+        409,
+      );
     const prepared = prepareContractCall(call, policy);
     const purpose = `${decoded.callId}:${input.mechAddress}`;
     const reservation = await this.#store.transaction((repositories) =>
@@ -328,16 +411,28 @@ export class OlasKeeperHubGateway {
       }),
     );
     if (reservation.execution.simulationHash !== simulation.payloadHash)
-      throw new OlasGatewayError("SIMULATION_DRIFT", "Reserved simulation differs from this call", 409);
+      throw new OlasGatewayError(
+        "SIMULATION_DRIFT",
+        "Reserved simulation differs from this call",
+        409,
+      );
 
     let executionId = reservation.execution.executionId;
     let expectedTransactionHash: Hex | undefined;
     if (reservation.created) {
-      const broadcast = await clients.execution.broadcastContractCall(call, simulation, identity);
+      const broadcast = await clients.execution.broadcastContractCall(
+        call,
+        simulation,
+        identity,
+      );
       const candidateId = broadcast.response.executionId;
       const candidateHash = broadcast.response.transactionHash;
       if (typeof candidateId !== "string" || !candidateId)
-        throw new OlasGatewayError("EXECUTION_ID_MISSING", "KeeperHub did not return an execution ID", 502);
+        throw new OlasGatewayError(
+          "EXECUTION_ID_MISSING",
+          "KeeperHub did not return an execution ID",
+          502,
+        );
       executionId = candidateId;
       expectedTransactionHash =
         typeof candidateHash === "string" && txPattern.test(candidateHash)
@@ -367,7 +462,11 @@ export class OlasKeeperHubGateway {
       ...(expectedTransactionHash ? { expectedTransactionHash } : {}),
       deadlineAt: new Date(this.#now().getTime() + 300_000).toISOString(),
     });
-    if (verified.classification !== "VERIFIED_SUCCESS" || !verified.transactionHash || !verified.receipt) {
+    if (
+      verified.classification !== "VERIFIED_SUCCESS" ||
+      !verified.transactionHash ||
+      !verified.receipt
+    ) {
       await this.#store.transaction((repositories) =>
         repositories.keeperHubExecutions.markStatus({
           id: reservation.execution.id,
@@ -375,7 +474,9 @@ export class OlasKeeperHubGateway {
         }),
       );
       throw new OlasGatewayError(
-        verified.nextAction === "RECONCILE_SAME_EXECUTION" ? "RECEIPT_UNCONFIRMED" : "RECEIPT_REJECTED",
+        verified.nextAction === "RECONCILE_SAME_EXECUTION"
+          ? "RECEIPT_UNCONFIRMED"
+          : "RECEIPT_REJECTED",
         verified.reason,
         verified.nextAction === "RECONCILE_SAME_EXECUTION" ? 409 : 502,
       );

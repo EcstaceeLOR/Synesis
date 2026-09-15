@@ -95,7 +95,11 @@ export function IntentMechSelector({
                 </small>
                 <span className="mono-copy">{mech.address}</span>
                 <small className="mono-copy">
-                  Maximum procurement: {mech.unitAmount === null ? "quote required" : mech.unitAmount.toLocaleString()} base units
+                  Maximum procurement:{" "}
+                  {mech.unitAmount === null
+                    ? "quote required"
+                    : mech.unitAmount.toLocaleString()}{" "}
+                  base units
                 </small>
                 <StatusBadge tone="positive">{mech.tools[0]!.name}</StatusBadge>
               </span>
@@ -117,7 +121,8 @@ export function IntentMechSelector({
             </small>
             {selected.length > 0 ? (
               <small className="mono-copy">
-                APPROVED MAXIMUM: {selectedMaximum.toLocaleString()} base units (exact bounded approval)
+                APPROVED MAXIMUM: {selectedMaximum.toLocaleString()} base units
+                (exact bounded approval)
               </small>
             ) : null}
           </div>

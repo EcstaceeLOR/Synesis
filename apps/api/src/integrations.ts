@@ -287,7 +287,9 @@ export class IntegrationService {
       this.#store.read.integrationSecrets.find(organizationId, "onboarding"),
     ]);
     if (organization?.integrationStatus !== "READY" || !stored) {
-      throw new Error("Organization integrations are not ready for value movement");
+      throw new Error(
+        "Organization integrations are not ready for value movement",
+      );
     }
     const plaintext = this.#encryption.decrypt(
       stored,

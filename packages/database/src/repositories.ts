@@ -151,7 +151,9 @@ export interface ReadRepositories {
     ): Promise<IntentMechSelectionRecord | undefined>;
   };
   readonly olasRequests: {
-    findByIntentMechId(intentMechId: string): Promise<OlasRequestRecord | undefined>;
+    findByIntentMechId(
+      intentMechId: string,
+    ): Promise<OlasRequestRecord | undefined>;
   };
   readonly events: {
     exists(source: string, eventKey: string): Promise<boolean>;
@@ -308,7 +310,9 @@ export interface TransactionRepositories extends ReadRepositories {
     }): Promise<KeeperHubExecutionRecord>;
   };
   readonly transactionReceipts: {
-    create(input: typeof schema.transactionReceipts.$inferInsert): Promise<void>;
+    create(
+      input: typeof schema.transactionReceipts.$inferInsert,
+    ): Promise<void>;
   };
   readonly outbox: ReadRepositories["outbox"] & {
     enqueue(input: OutboxMessageInput): Promise<{
@@ -487,7 +491,10 @@ const createReadRepositories = (
   intentMechs: {
     findByIntentAndMechAddress: async (intentId, mechAddress) => {
       const rows = await database
-        .select({ intentMech: schema.intentMechs, mechAddress: schema.mechs.address })
+        .select({
+          intentMech: schema.intentMechs,
+          mechAddress: schema.mechs.address,
+        })
         .from(schema.intentMechs)
         .innerJoin(schema.mechs, eq(schema.intentMechs.mechId, schema.mechs.id))
         .where(
@@ -498,7 +505,9 @@ const createReadRepositories = (
         )
         .limit(1);
       const row = rows[0];
-      return row ? { ...row.intentMech, mechAddress: row.mechAddress } : undefined;
+      return row
+        ? { ...row.intentMech, mechAddress: row.mechAddress }
+        : undefined;
     },
   },
   olasRequests: {
@@ -907,7 +916,9 @@ const createTransactionRepositories = (
           .onConflictDoNothing()
           .returning();
         if (inserted[0]) return { request: inserted[0], created: true };
-        const existing = await read.olasRequests.findByIntentMechId(input.intentMechId);
+        const existing = await read.olasRequests.findByIntentMechId(
+          input.intentMechId,
+        );
         if (!existing || existing.requestId !== input.requestId) {
           throw new PersistenceConflictError(
             `Olas request ${input.requestId} conflicts with a persisted request`,
@@ -964,7 +975,9 @@ const createTransactionRepositories = (
           .where(eq(schema.keeperHubExecutions.id, id))
           .returning();
         if (!updated[0])
-          throw new PersistenceConflictError(`KeeperHub execution ${id} does not exist`);
+          throw new PersistenceConflictError(
+            `KeeperHub execution ${id} does not exist`,
+          );
         return updated[0];
       },
       markStatus: async ({ id, status }) => {
@@ -974,7 +987,9 @@ const createTransactionRepositories = (
           .where(eq(schema.keeperHubExecutions.id, id))
           .returning();
         if (!updated[0])
-          throw new PersistenceConflictError(`KeeperHub execution ${id} does not exist`);
+          throw new PersistenceConflictError(
+            `KeeperHub execution ${id} does not exist`,
+          );
         return updated[0];
       },
     },

@@ -1,7 +1,11 @@
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 
-import { BASE_DEPLOYMENT_MANIFEST, type Address, type Hex } from "./manifest.js";
+import {
+  BASE_DEPLOYMENT_MANIFEST,
+  type Address,
+  type Hex,
+} from "./manifest.js";
 
 export const MARKETPLACE_REQUEST_TOPIC = `0x${bytesToHex(
   keccak_256(
@@ -72,7 +76,9 @@ export const extractMarketplaceRequestId = (input: {
       topicAddress(log.topics[2] ?? "", "requester") === expectedRequester,
   );
   if (matching.length !== 1)
-    fail("Exactly one requester- and Mech-bound MarketplaceRequest event is required");
+    fail(
+      "Exactly one requester- and Mech-bound MarketplaceRequest event is required",
+    );
   const event = matching[0]!;
   if (!/^0x[\da-f]*$/iu.test(event.data))
     fail("MarketplaceRequest event data is malformed");
