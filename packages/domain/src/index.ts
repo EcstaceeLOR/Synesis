@@ -4,6 +4,7 @@ export * from "./contracts.js";
 export * from "./errors.js";
 export * from "./hashing.js";
 export * from "./json-schemas.js";
+export * from "./mechs.js";
 export * from "./primitives.js";
 export * from "./state-machine.js";
 

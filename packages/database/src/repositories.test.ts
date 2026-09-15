@@ -76,6 +76,10 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
         intentId: "test_intent",
         mechId: "test_mech",
         toolId: "risk-analysis",
+        metadataCid: `f01701220${"1".repeat(64)}`,
+        toolSchemaHash: `sha256:${"2".repeat(64)}`,
+        observedVersion: "base-2026-09-15.2",
+        observedAt: "2026-09-14T10:00:00.000Z",
         quotedPrice: "10",
         requestCid: "bafy-test-request",
       });
@@ -156,6 +160,10 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
         intentId: "test_intent",
         mechId: "test_mech",
         toolId: "risk-analysis",
+        metadataCid: `f01701220${"1".repeat(64)}`,
+        toolSchemaHash: `sha256:${"2".repeat(64)}`,
+        observedVersion: "base-2026-09-15.2",
+        observedAt: "2026-09-14T10:00:00.000Z",
         quotedPrice: "10",
         requestCid: "bafy-test-request",
       });

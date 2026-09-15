@@ -8,13 +8,17 @@ The process never accepts a private key. `KeeperHubExternalSigner` structurally 
 
 All `/internal/v1/*` routes require `Authorization: Bearer <OLAS_ADAPTER_INTERNAL_TOKEN>`. Deploy the service only on private service networking; interactive OpenAPI routes are disabled.
 
-| Route                                | Purpose                                                                      |
-| ------------------------------------ | ---------------------------------------------------------------------------- |
-| `GET /health`                        | Credential-free container liveness and capability status.                    |
-| `GET /internal/v1/health`            | Authenticated typed dependency/capability health.                            |
-| `POST /internal/v1/quotes`           | Discover a Mech and freeze its onchain USDC rate and official tool schema.   |
-| `POST /internal/v1/request-plans`    | Upload IPFS metadata and return content-hashed unsigned KeeperHub calls.     |
-| `POST /internal/v1/deliveries/parse` | Resolve the official Olas result URL and validate JSON and request bindings. |
+| Route                                | Purpose                                                                                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /health`                        | Credential-free container liveness and capability status.                                                                             |
+| `GET /internal/v1/health`            | Authenticated typed dependency/capability health.                                                                                     |
+| `POST /internal/v1/quotes`           | Discover a Mech and freeze its onchain USDC rate and official tool schema.                                                            |
+| `POST /internal/v1/request-plans`    | Upload IPFS metadata and return content-hashed unsigned KeeperHub calls.                                                              |
+| `POST /internal/v1/deliveries/parse` | Resolve the official Olas result URL and validate JSON and request bindings.                                                          |
+| `GET /internal/v1/mechs`             | Inspect live Base contracts and complementary metadata, then return scored providers with explicit rejection reasons.                 |
+| `POST /internal/v1/mechs/freeze`     | Revalidate two independent eligible Mech/tool pairs and bind their address, metadata CID, schema hash, and observed manifest version. |
+
+Discovery never substitutes fixture providers. A Mech is selectable only when it is a supported Base marketplace contract with live code, a matching service ID, delivery history, fixed-price USDC within the v1 cap, and at least one bounded JSON-compatible schema pinned by a non-zero metadata CID. Partial inspection failures degrade only the affected provider and are surfaced to the marketplace API.
 
 Request plans are Base-only and fixed-price USDC-only. They contain a bounded approval to the official Olas USDC balance tracker followed by one Marketplace `request(bytes,uint256,bytes32,address,uint256,bytes)` call. Each call carries a stable economic idempotency key and the current deployment-manifest reference. The KeeperHub gateway independently decodes the exact calldata before simulation or broadcast.
 

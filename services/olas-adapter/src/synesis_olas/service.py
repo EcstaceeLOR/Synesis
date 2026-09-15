@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
@@ -14,13 +15,23 @@ from synesis_olas.errors import AdapterError, DisabledCapabilityError
 from synesis_olas.models import (
     AdapterHealth,
     CapabilityStatus,
+    CompatibilityReason,
     DeliveryRequest,
     DeliveryResponse,
+    DiscoveredMech,
+    FreezeMechSelectionRequest,
+    FrozenMechSelection,
+    FrozenMechSelectionBundle,
+    InspectedMech,
     IpfsEnvelope,
+    MechDirectory,
+    MechKind,
+    NormalizedMech,
     QuoteRequest,
     QuoteResponse,
     RequestPlanRequest,
     RequestPlanResponse,
+    ToolSnapshot,
     UnsignedCall,
     normalize_hex,
 )
@@ -35,10 +46,20 @@ USDC_PAYMENT_TYPE = "6406bb5f31a732f898e1ce9fdd988a80a808d36ab5d9a4a4805a8be8d19
 MAX_USDC_RATE = 1_000_000
 MAX_PROMPT_BYTES = 8_192
 MAX_DELIVERY_BYTES = 256_000
+DISCOVERY_CACHE_SECONDS = 60
+DISCOVERY_WORKERS = 5
 MANIFEST_VERSION = "base-2026-09-15.2"
 MANIFEST_HASH = "sha256:7601b8c8bce4817d5a7a376ee354f8da55f3ec633b833713d973fd5966d91c7a"
 DisabledMode = Literal["sign_message", "offchain", "agent", "safe"]
 DISABLED_MODES: tuple[DisabledMode, ...] = ("sign_message", "offchain", "agent", "safe")
+SUPPORTED_BASE_FACTORIES = frozenset(
+    {
+        "0x2e008211f34b25a7d7c102403c6c2c3b665a1abe",
+        "0x97371b1c0cda1d04dfc43dfb50a04645b7bc9bee",
+        "0x847bbe8b474e0820215f818858e23f5f5591855a",
+        "0x7bed01f8482ff686f025628e7780ca6c1f0559fc",
+    }
+)
 
 
 def _canonical_bytes(value: object) -> bytes:
@@ -74,6 +95,7 @@ class OlasAdapterService:
         self.now = now or (lambda: datetime.now(UTC))
         self.manifest_version = manifest_version
         self.manifest_hash = manifest_hash
+        self._directory_cache: tuple[datetime, MechDirectory] | None = None
 
     def health(self) -> AdapterHealth:
         version = installed_mech_client_version()
@@ -105,6 +127,232 @@ class OlasAdapterService:
                 safe_mode=False,
             ),
             checks=checks,
+        )
+
+    @staticmethod
+    def _tool_snapshots(inspection: InspectedMech) -> tuple[ToolSnapshot, ...]:
+        snapshots: list[ToolSnapshot] = []
+        for tool, schema in sorted(inspection.tool_schemas.items()):
+            input_schema = schema.get("input")
+            output_schema = schema.get("output")
+            if not isinstance(input_schema, dict) or not isinstance(output_schema, dict):
+                continue
+            if len(_canonical_bytes(schema)) > 64_000:
+                continue
+            snapshots.append(
+                ToolSnapshot(
+                    name=tool,
+                    description=str(schema.get("description", "")),
+                    input_schema=input_schema,
+                    output_schema=output_schema,
+                    schema_hash=_content_hash({"input": input_schema, "output": output_schema}),
+                )
+            )
+        return tuple(snapshots)
+
+    def _score_mech(
+        self,
+        mech: NormalizedMech,
+        inspection: InspectedMech,
+        observed_at: datetime,
+        inspection_failed: bool = False,
+    ) -> DiscoveredMech:
+        reasons: list[CompatibilityReason] = []
+        score = 10  # Base is the only configured discovery chain.
+        factory = mech.factory_address.lower() if mech.factory_address else None
+        if mech.kind is not MechKind.MARKETPLACE or factory not in SUPPORTED_BASE_FACTORIES:
+            reasons.append(
+                CompatibilityReason(
+                    code="UNSUPPORTED_SIGNING_MODE",
+                    message=(
+                        "Synesis requires a Base marketplace Mech usable by its "
+                        "external transaction signer."
+                    ),
+                )
+            )
+        else:
+            score += 15
+
+        identity_matches = inspection.onchain_service_id == mech.service_id
+        if inspection_failed:
+            reasons.append(
+                CompatibilityReason(
+                    code="INSPECTION_UNAVAILABLE",
+                    message="Live contract or metadata inspection could not be completed.",
+                )
+            )
+        elif not inspection.contract_active or not identity_matches or mech.total_deliveries <= 0:
+            reasons.append(
+                CompatibilityReason(
+                    code="INACTIVE_CONTRACT",
+                    message=(
+                        "The contract has no active code, matching service identity, "
+                        "and delivery history."
+                    ),
+                )
+            )
+        else:
+            score += 25
+
+        if inspection.payment_type != "USDC_TOKEN":
+            reasons.append(
+                CompatibilityReason(
+                    code="PAYMENT_TYPE_UNSUPPORTED",
+                    message="Synesis v1 requires fixed-price USDC payment through KeeperHub.",
+                )
+            )
+        elif not inspection.unit_amount or inspection.unit_amount > MAX_USDC_RATE:
+            reasons.append(
+                CompatibilityReason(
+                    code="PRICE_OUT_OF_POLICY",
+                    message="The live quote is missing or exceeds the 1 USDC per-request cap.",
+                )
+            )
+        else:
+            score += 20
+
+        tools = self._tool_snapshots(inspection)
+        if not mech.metadata_cid:
+            reasons.append(
+                CompatibilityReason(
+                    code="METADATA_UNPINNED",
+                    message="No non-zero complementary metadata CID is published onchain.",
+                )
+            )
+        elif not tools:
+            reasons.append(
+                CompatibilityReason(
+                    code="SCHEMA_UNSUPPORTED",
+                    message="No bounded JSON-compatible tool schema could be pinned.",
+                )
+            )
+        else:
+            score += 20
+
+        if mech.total_deliveries > 0:
+            score += min(10, 2 + len(str(mech.total_deliveries)) * 2)
+        eligible = not reasons
+        health: Literal["active", "degraded", "inactive"]
+        if inspection_failed:
+            health = "degraded"
+        elif not inspection.contract_active or mech.total_deliveries <= 0:
+            health = "inactive"
+        else:
+            health = "active"
+        return DiscoveredMech(
+            chain_id=BASE_CHAIN_ID,
+            address=normalize_hex(mech.address),
+            service_id=mech.service_id,
+            factory_address=(normalize_hex(mech.factory_address) if mech.factory_address else None),
+            name=inspection.name or f"Olas service {mech.service_id}",
+            description=inspection.description or "No operator description is published.",
+            metadata_cid=mech.metadata_cid,
+            payment_type=inspection.payment_type,
+            unit_amount=inspection.unit_amount,
+            payment_decimals=6 if inspection.payment_type == "USDC_TOKEN" else 18,
+            total_deliveries=mech.total_deliveries,
+            health=health,
+            eligible=eligible,
+            compatibility_score=min(score, 100),
+            reasons=tuple(reasons),
+            tools=tools,
+            observed_at=observed_at,
+            observed_version=self.manifest_version,
+        )
+
+    def discover_directory(self) -> MechDirectory:
+        """Inspect every officially discovered Base Mech and fail closed per provider."""
+
+        observed_at = self.now()
+        if self._directory_cache and self._directory_cache[0] > observed_at:
+            return self._directory_cache[1]
+        mechs = self.client.discover()
+
+        def inspect(mech: NormalizedMech) -> tuple[DiscoveredMech, bool]:
+            try:
+                inspection = self.client.inspect_mech(mech)
+                return self._score_mech(mech, inspection, observed_at), False
+            except AdapterError:
+                return (
+                    self._score_mech(
+                        mech,
+                        InspectedMech(contract_active=False),
+                        observed_at,
+                        inspection_failed=True,
+                    ),
+                    True,
+                )
+
+        with ThreadPoolExecutor(max_workers=DISCOVERY_WORKERS) as executor:
+            results = tuple(executor.map(inspect, mechs))
+        scored = [result[0] for result in results]
+        degraded = any(result[1] for result in results)
+        status: Literal["ready", "degraded", "empty"]
+        status = "empty" if not scored else "degraded" if degraded else "ready"
+        directory = MechDirectory(
+            chain_id=BASE_CHAIN_ID,
+            status=status,
+            source="olas-mech-client",
+            observed_at=observed_at,
+            observed_version=self.manifest_version,
+            mechs=tuple(scored),
+        )
+        self._directory_cache = (
+            observed_at + timedelta(seconds=DISCOVERY_CACHE_SECONDS),
+            directory,
+        )
+        return directory
+
+    def freeze_mech_selections(
+        self, request: FreezeMechSelectionRequest
+    ) -> FrozenMechSelectionBundle:
+        """Revalidate and freeze exactly two independent eligible Mech/tool versions."""
+
+        directory = self.discover_directory()
+        frozen: list[FrozenMechSelection] = []
+        for selection in request.selections:
+            mech = next(
+                (
+                    item
+                    for item in directory.mechs
+                    if item.address.lower() == selection.mech_address.lower()
+                ),
+                None,
+            )
+            if mech is None or not mech.eligible or not mech.metadata_cid:
+                raise AdapterError(
+                    "MECH_NOT_ELIGIBLE",
+                    "Intent selections must reference currently eligible Mechs",
+                    422,
+                )
+            tool = next((item for item in mech.tools if item.name == selection.tool), None)
+            if tool is None:
+                raise AdapterError(
+                    "TOOL_NOT_ELIGIBLE",
+                    "Intent selections must reference a currently eligible tool schema",
+                    422,
+                )
+            frozen.append(
+                FrozenMechSelection(
+                    mech_address=mech.address,
+                    service_id=mech.service_id,
+                    metadata_cid=mech.metadata_cid,
+                    tool=tool.name,
+                    tool_schema_hash=tool.schema_hash,
+                    observed_version=mech.observed_version,
+                    observed_at=mech.observed_at,
+                )
+            )
+        material = {
+            "schema_version": "synesis.mech-selection.v1",
+            "chain_id": BASE_CHAIN_ID,
+            "selections": [item.model_dump(mode="json") for item in frozen],
+        }
+        return FrozenMechSelectionBundle(
+            schema_version="synesis.mech-selection.v1",
+            chain_id=BASE_CHAIN_ID,
+            snapshot_hash=_content_hash(material),
+            selections=(frozen[0], frozen[1]),
         )
 
     def quote(self, request: QuoteRequest) -> QuoteResponse:

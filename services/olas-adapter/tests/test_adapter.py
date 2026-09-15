@@ -9,7 +9,10 @@ from eth_abi.abi import default_codec
 from synesis_olas.errors import AdapterError, DisabledCapabilityError
 from synesis_olas.models import (
     DeliveryRequest,
+    FreezeMechSelectionRequest,
+    InspectedMech,
     MechKind,
+    MechSelection,
     NormalizedMech,
     QuoteRequest,
     RequestPlanRequest,
@@ -23,7 +26,7 @@ from synesis_olas.service import (
 )
 
 MECH = "0x1111111111111111111111111111111111111111"
-FACTORY = "0x2222222222222222222222222222222222222222"
+FACTORY = "0x97371b1c0cda1d04dfc43dfb50a04645b7bc9bee"
 PAYER = "0x3333333333333333333333333333333333333333"
 REQUEST_ID = "0x" + "44" * 32
 DELIVERY_DATA = "0x" + "55" * 32
@@ -48,11 +51,29 @@ class FakeOlasClient:
                 kind=MechKind.MARKETPLACE,
                 total_deliveries=42,
                 tools=("prediction-request",),
+                metadata_cid="f01701220" + "77" * 32,
             ),
         )
 
     def discover(self) -> tuple[NormalizedMech, ...]:
         return self.mechs
+
+    def inspect_mech(self, mech: NormalizedMech) -> InspectedMech:
+        return InspectedMech(
+            contract_active=True,
+            onchain_service_id=mech.service_id,
+            payment_type=self.payment,
+            unit_amount=self.rate,
+            name="Test risk Mech",
+            description="A deterministic fixture backed by a fake port.",
+            tool_schemas={
+                "prediction-request": {
+                    "description": "Return one decision",
+                    "input": {"type": "string"},
+                    "output": {"type": "object"},
+                }
+            },
+        )
 
     def quote_details(self, _mech: NormalizedMech, tool: str) -> tuple[str, int, dict[str, Any]]:
         if tool != "prediction-request":
@@ -126,6 +147,50 @@ def test_quote_uses_live_mech_facts_and_caps_rate() -> None:
         service(FakeOlasClient(payment="NATIVE")).quote(
             QuoteRequest(mech_address=MECH, tool="prediction-request")
         )
+
+
+def test_discovery_scores_and_freezes_live_versions() -> None:
+    fake = FakeOlasClient()
+    second = fake.mechs[0].model_copy(
+        update={
+            "address": "0x4444444444444444444444444444444444444444",
+            "service_id": 1723,
+            "metadata_cid": "f01701220" + "88" * 32,
+        }
+    )
+    fake.mechs = (fake.mechs[0], second)
+    adapter = service(fake)
+
+    directory = adapter.discover_directory()
+    assert directory.status == "ready"
+    assert all(mech.eligible for mech in directory.mechs)
+    assert directory.mechs[0].tools[0].schema_hash.startswith("sha256:")
+
+    frozen = adapter.freeze_mech_selections(
+        FreezeMechSelectionRequest(
+            selections=(
+                MechSelection(mech_address=MECH, tool="prediction-request"),
+                MechSelection(mech_address=second.address, tool="prediction-request"),
+            )
+        )
+    )
+    assert frozen.snapshot_hash.startswith("sha256:")
+    assert frozen.selections[0].metadata_cid == "f01701220" + "77" * 32
+    assert frozen.selections[0].observed_version == "base-2026-09-15.2"
+
+
+def test_discovery_rejects_incompatible_and_degraded_mechs_without_fabrication() -> None:
+    fake = FakeOlasClient(payment="NATIVE")
+    directory = service(fake).discover_directory()
+
+    assert len(directory.mechs) == 1
+    assert directory.mechs[0].eligible is False
+    assert "PAYMENT_TYPE_UNSUPPORTED" in {reason.code for reason in directory.mechs[0].reasons}
+
+    fake.mechs = ()
+    empty = service(fake).discover_directory()
+    assert empty.status == "empty"
+    assert empty.mechs == ()
 
 
 def test_request_plan_is_bound_to_ipfs_quote_manifest_and_intent() -> None:

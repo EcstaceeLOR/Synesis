@@ -37,6 +37,17 @@ const migrations = [
       import.meta.url,
     ),
   },
+  {
+    id: "0004_frozen_mech_selections",
+    up: new URL(
+      "../migrations/0004_frozen_mech_selections.up.sql",
+      import.meta.url,
+    ),
+    down: new URL(
+      "../migrations/0004_frozen_mech_selections.down.sql",
+      import.meta.url,
+    ),
+  },
 ] as const;
 
 export interface MigrationOptions {

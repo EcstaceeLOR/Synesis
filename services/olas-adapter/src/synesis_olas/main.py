@@ -11,6 +11,9 @@ from synesis_olas.models import (
     DeliveryRequest,
     DeliveryResponse,
     ErrorResponse,
+    FreezeMechSelectionRequest,
+    FrozenMechSelectionBundle,
+    MechDirectory,
     QuoteRequest,
     QuoteResponse,
     RequestPlanRequest,
@@ -68,6 +71,22 @@ def create_app(
     )
     def internal_health() -> AdapterHealth:
         return adapter.health()
+
+    @application.get(
+        "/internal/v1/mechs",
+        response_model=MechDirectory,
+        dependencies=[Depends(require_internal_auth)],
+    )
+    def mechs() -> MechDirectory:
+        return adapter.discover_directory()
+
+    @application.post(
+        "/internal/v1/mechs/freeze",
+        response_model=FrozenMechSelectionBundle,
+        dependencies=[Depends(require_internal_auth)],
+    )
+    def freeze_mechs(body: FreezeMechSelectionRequest) -> FrozenMechSelectionBundle:
+        return adapter.freeze_mech_selections(body)
 
     @application.post(
         "/internal/v1/quotes",

@@ -844,6 +844,224 @@ kbd {
     0.68rem ui-monospace,
     monospace;
 }
+
+/* Live Olas marketplace */
+.mech-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.mech-toolbar label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--faint);
+  font:
+    650 0.6rem ui-monospace,
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mech-toolbar label:first-child {
+  width: min(520px, 70%);
+}
+.mech-toolbar input[type="text"],
+.mech-toolbar input:not([type]) {
+  min-height: 42px;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: var(--canvas);
+}
+.mech-toolbar .mech-check {
+  display: flex;
+  align-items: center;
+  padding-bottom: 0.7rem;
+  color: var(--muted);
+}
+.mech-record {
+  min-width: 250px;
+}
+.mech-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1.25rem;
+  border: 1px solid var(--line);
+  background: var(--line);
+  gap: 1px;
+}
+.mech-facts > div {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem;
+  background: var(--panel);
+}
+.mech-facts span,
+.schema-grid > div > span,
+.freeze-bar span,
+.frozen-grid article > span {
+  color: var(--faint);
+  font:
+    650 0.58rem ui-monospace,
+    monospace;
+  letter-spacing: 0.09em;
+}
+.mech-facts strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+}
+.reason-grid,
+.selector-grid,
+.frozen-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+.reason-grid article,
+.frozen-grid article {
+  padding: 1rem;
+  background: var(--panel);
+}
+.reason-grid p {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.schema-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+.schema-stack details {
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.schema-stack summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  cursor: pointer;
+}
+.schema-stack details > p {
+  margin: 0;
+  padding: 0 1rem 1rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.schema-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+.schema-grid > div {
+  min-width: 0;
+  padding: 1rem;
+}
+.schema-grid > div + div {
+  border-left: 1px solid var(--line);
+}
+.schema-grid pre {
+  max-height: 360px;
+  overflow: auto;
+  margin: 0.75rem 0 0;
+  color: var(--signal);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+.intent-selector-shell {
+  padding-top: 0;
+}
+.intent-selector {
+  margin-top: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.selector-card {
+  display: flex;
+  gap: 0.85rem;
+  min-width: 0;
+  padding: 1rem;
+  background: var(--panel);
+  cursor: pointer;
+}
+.selector-card.is-selected {
+  background: #182112;
+  box-shadow: inset 3px 0 var(--signal);
+}
+.selector-card > span {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+}
+.selector-card small,
+.frozen-grid small {
+  overflow: hidden;
+  color: var(--faint);
+  text-overflow: ellipsis;
+}
+.selector-card .syn-status {
+  width: fit-content;
+}
+.selection-blocked {
+  display: grid;
+  gap: 1rem;
+}
+.selection-blocked .secondary-action {
+  width: fit-content;
+}
+.freeze-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+}
+.freeze-bar > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+.freeze-bar strong {
+  overflow: hidden;
+  color: var(--signal);
+  text-overflow: ellipsis;
+  font:
+    0.7rem ui-monospace,
+    monospace;
+}
+.freeze-bar small {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.freeze-bar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.frozen-grid {
+  margin-top: 1rem;
+}
+.frozen-grid article {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
+.frozen-grid strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.65rem;
+}
 .syn-status {
   display: inline-flex;
   align-items: center;
