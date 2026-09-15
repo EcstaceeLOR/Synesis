@@ -43,7 +43,7 @@ class FakeOlasClient:
         self.attributes: dict[str, Any] = {}
         self.request_data = REQUEST_DATA
         self.cid_hex = CID_HEX
-        self.mechs = (
+        self.mechs: tuple[NormalizedMech, ...] = (
             NormalizedMech(
                 address=MECH,
                 service_id=1722,
