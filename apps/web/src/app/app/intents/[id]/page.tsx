@@ -9,5 +9,11 @@ export default async function IntentDetailPage({
   readonly params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <><LiveActivityStream /><IntentRoomActions intentId={id} /><ProductPage state={await loadProductPage("intent-detail", id)} /></>;
+  return (
+    <>
+      <LiveActivityStream />
+      <IntentRoomActions intentId={id} />
+      <ProductPage state={await loadProductPage("intent-detail", id)} />
+    </>
+  );
 }
