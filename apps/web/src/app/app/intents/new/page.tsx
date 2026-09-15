@@ -2,6 +2,7 @@ import { IntentMechSelector } from "../../../../components/intent-mech-selector"
 import { ProductPage } from "../../../../components/product-page";
 import { loadMechDirectory } from "../../../../lib/mech-data";
 import { loadProductPage } from "../../../../lib/page-data";
+import { IntentWizardForm } from "../../../../components/intent-wizard-form";
 
 export default async function NewIntentPage() {
   const [page, directory] = await Promise.all([
@@ -11,6 +12,9 @@ export default async function NewIntentPage() {
   return (
     <>
       <ProductPage state={page} />
+      <div className="content-shell">
+        <IntentWizardForm />
+      </div>
       <div className="content-shell intent-selector-shell">
         <IntentMechSelector state={directory} />
       </div>
