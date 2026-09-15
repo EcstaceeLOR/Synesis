@@ -13,8 +13,11 @@ import {
 } from "@synesis/database";
 import { KeeperHubClient } from "@synesis/keeperhub-client";
 import {
+  BASE_DEPLOYMENT_MANIFEST,
   BASE_MECH_MARKETPLACE,
   OLAS_BASE_SUBGRAPH,
+  verifyDeploymentHealth,
+  type DeploymentHealthReport,
 } from "@synesis/olas-contracts";
 
 export const BASE_CHAIN_ID = 8453;
@@ -162,6 +165,9 @@ export interface IntegrationServiceOptions {
   readonly now?: () => Date;
   readonly keeperHubOrigin?: string;
   readonly ipfsProbeCid?: string;
+  readonly deploymentHealth?: (
+    rpcUrl: string,
+  ) => Promise<DeploymentHealthReport>;
 }
 
 const formatFailure = (error: unknown): string =>
@@ -176,6 +182,9 @@ export class IntegrationService {
   readonly #now: () => Date;
   readonly #keeperHubOrigin: string | undefined;
   readonly #ipfsProbeCid: string;
+  readonly #deploymentHealth: (
+    rpcUrl: string,
+  ) => Promise<DeploymentHealthReport>;
 
   public constructor(options: IntegrationServiceOptions) {
     this.#store = options.store;
@@ -186,6 +195,15 @@ export class IntegrationService {
     this.#ipfsProbeCid =
       options.ipfsProbeCid ??
       "bafybeiatwwblrphl6qmxfqzu7ose37drqlbkboqbisldwks772yif3buky";
+    this.#deploymentHealth =
+      options.deploymentHealth ??
+      ((rpcUrl) =>
+        verifyDeploymentHealth({
+          rpcUrl,
+          manifest: BASE_DEPLOYMENT_MANIFEST,
+          fetch: this.#fetch,
+          now: () => this.#now().getTime(),
+        }));
   }
 
   public async configureAndCheck(
@@ -441,25 +459,26 @@ export class IntegrationService {
     }
 
     try {
-      const addresses = [
-        BASE_MECH_MARKETPLACE.contracts.mechMarketplace,
-        BASE_MECH_MARKETPLACE.contracts.complementaryMetadata,
-      ];
-      const code = await Promise.all(
-        addresses.map((address) =>
-          this.#rpc(credentials.baseRpcUrl, "eth_getCode", [address, "latest"]),
-        ),
+      const deploymentHealth = await this.#deploymentHealth(
+        credentials.baseRpcUrl,
       );
-      if (code.some((value) => typeof value !== "string" || value === "0x"))
-        throw new Error(
-          "An official Olas Base deployment has no contract code",
-        );
+      if (!deploymentHealth.ready) {
+        const failed = deploymentHealth.checks
+          .filter((entry) => entry.status === "FAIL")
+          .map((entry) => entry.component)
+          .join(", ");
+        throw new Error(`Pinned Base deployment mismatch: ${failed}`);
+      }
       checks.push(
         result(
           "olas_deployments",
           "ready",
-          "Official Olas marketplace contracts are deployed on Base.",
-          { contracts: addresses },
+          "Pinned Olas, USDC, and Aave proxy deployments match live Base bytecode.",
+          {
+            manifestVersion: deploymentHealth.manifestVersion,
+            manifestHash: deploymentHealth.manifestHash,
+            verifiedChecks: deploymentHealth.checks.length,
+          },
         ),
       );
     } catch (error) {
