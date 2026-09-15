@@ -7,7 +7,7 @@ import {
   type Hex,
 } from "./manifest.js";
 
-export const MARKETPLACE_REQUEST_TOPIC = `0x${bytesToHex(
+export const MARKETPLACE_REQUEST_TOPIC: Hex = `0x${bytesToHex(
   keccak_256(
     new TextEncoder().encode(
       "MarketplaceRequest(address,address,uint256,bytes32[],bytes[])",

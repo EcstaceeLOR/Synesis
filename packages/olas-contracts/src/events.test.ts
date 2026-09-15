@@ -63,7 +63,7 @@ describe("Olas MarketplaceRequest event extraction", () => {
               addressTopic(mech),
               requesterTopic,
             ],
-            data: eventData as Hex,
+            data: eventData,
           },
         ],
       }),
