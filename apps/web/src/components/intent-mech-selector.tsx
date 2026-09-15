@@ -19,6 +19,10 @@ export function IntentMechSelector({
     [];
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [snapshot, setSnapshot] = useState<FrozenMechSelectionBundle>();
+  const selectedMaximum = selected.reduce((total, address) => {
+    const mech = eligible.find((item) => item.address === address);
+    return total + (mech?.unitAmount ?? 0);
+  }, 0);
   const toggle = (address: string) =>
     setSelected((current) =>
       current.includes(address)
@@ -90,6 +94,9 @@ export function IntentMechSelector({
                   Service #{mech.serviceId} · {mech.totalDeliveries} deliveries
                 </small>
                 <span className="mono-copy">{mech.address}</span>
+                <small className="mono-copy">
+                  Maximum procurement: {mech.unitAmount === null ? "quote required" : mech.unitAmount.toLocaleString()} base units
+                </small>
                 <StatusBadge tone="positive">{mech.tools[0]!.name}</StatusBadge>
               </span>
             </label>
@@ -108,6 +115,11 @@ export function IntentMechSelector({
                 ? "Addresses, metadata CIDs, tool schema hashes, and observed versions are bound."
                 : "Selection is revalidated server-side when the intent is persisted."}
             </small>
+            {selected.length > 0 ? (
+              <small className="mono-copy">
+                APPROVED MAXIMUM: {selectedMaximum.toLocaleString()} base units (exact bounded approval)
+              </small>
+            ) : null}
           </div>
           <button
             className="primary-action"
@@ -115,7 +127,7 @@ export function IntentMechSelector({
             disabled={selected.length !== 2}
             onClick={freeze}
           >
-            Freeze selection
+            Approve &amp; freeze maximum
           </button>
         </div>
       ) : null}

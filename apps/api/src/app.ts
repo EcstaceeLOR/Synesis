@@ -10,6 +10,11 @@ import {
 } from "./auth.js";
 import { EnvelopeEncryption, IntegrationService } from "./integrations.js";
 import { OlasMechDirectoryClient, type MechDirectoryReader } from "./mechs.js";
+import {
+  authenticateGatewayToken,
+  OlasGatewayError,
+  OlasKeeperHubGateway,
+} from "./olas-gateway.js";
 
 export interface BuildServerOptions {
   readonly store?: SynesisStore;
@@ -19,6 +24,8 @@ export interface BuildServerOptions {
   readonly now?: () => Date;
   readonly integrationService?: IntegrationService;
   readonly mechDirectory?: MechDirectoryReader;
+  readonly olasGateway?: Pick<OlasKeeperHubGateway, "submit">;
+  readonly internalServiceToken?: string;
 }
 
 export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
@@ -67,6 +74,22 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
           token: process.env.OLAS_ADAPTER_INTERNAL_TOKEN,
         })
       : undefined);
+  const olasGateway =
+    options.olasGateway ??
+    (store && integrationService && mechDirectory
+      ? new OlasKeeperHubGateway({
+          store,
+          mechDirectory,
+          loadCredentials: (organizationId) =>
+            integrationService.loadExecutionCredentials(organizationId),
+          ...(process.env.KEEPERHUB_API_ORIGIN
+            ? { keeperHubOrigin: process.env.KEEPERHUB_API_ORIGIN }
+            : {}),
+          ...(options.now ? { now: options.now } : {}),
+        })
+      : undefined);
+  const internalServiceToken =
+    options.internalServiceToken ?? process.env.OLAS_ADAPTER_INTERNAL_TOKEN;
 
   server.register(cors, {
     origin: [...allowedOrigins],
@@ -81,6 +104,41 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
       environmentSchema.catch("demo").parse(process.env.SYNESIS_MODE),
       "0.1.0",
     ),
+  );
+
+  server.post<{ Body: unknown }>(
+    "/internal/v1/keeperhub/submit-call",
+    async (request, reply) => {
+      if (!olasGateway || !internalServiceToken)
+        return reply.status(503).send({
+          code: "OLAS_GATEWAY_UNCONFIGURED",
+          message: "The internal Olas execution gateway is not configured",
+        });
+      if (
+        !authenticateGatewayToken(
+          request.headers.authorization,
+          internalServiceToken,
+        )
+      )
+        return reply.status(401).send({
+          code: "UNAUTHORIZED",
+          message: "A valid internal service token is required",
+        });
+      try {
+        return await olasGateway.submit(request.body, request.id);
+      } catch (error) {
+        if (error instanceof OlasGatewayError)
+          return reply.status(error.statusCode).send({
+            code: error.code,
+            message: error.message,
+          });
+        request.log.error({ error }, "Olas KeeperHub gateway failed");
+        return reply.status(500).send({
+          code: "OLAS_GATEWAY_FAILED",
+          message: "The Olas execution gateway failed",
+        });
+      }
+    },
   );
 
   registerAuthRoutes(server, {

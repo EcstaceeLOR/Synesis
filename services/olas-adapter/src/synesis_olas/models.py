@@ -229,6 +229,9 @@ class GatewayReceipt(StrictModel):
     receipt_status: Literal["success"] = Field(
         validation_alias=AliasChoices("receipt_status", "receiptStatus")
     )
+    request_id: str | None = Field(
+        default=None, validation_alias=AliasChoices("request_id", "requestId")
+    )
 
 
 class ErrorResponse(StrictModel):

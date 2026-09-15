@@ -457,6 +457,7 @@ export const olasRequests = pgTable(
     createdAt: createdAt(),
   },
   (table) => [
+    uniqueIndex("olas_requests_intent_mech_unique").on(table.intentMechId),
     uniqueIndex("olas_requests_chain_request_unique").on(
       table.chainId,
       table.requestId,
