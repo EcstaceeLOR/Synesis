@@ -273,10 +273,20 @@ export const validateCalldata = (
       fail("USDC approve calldata has a non-canonical length");
     const spender = decodeAddressWord(wordAt(payload, 0), "USDC spender");
     const amount = decodeUintWord(wordAt(payload, 1)).toString();
-    const constraint = requireConstraint(rule.constraint, "USDC_APPROVE_AAVE");
-    if (spender !== constraint.spender.toLowerCase())
-      fail("USDC spender is not Aave Pool");
-    if (BigInt(amount) > BigInt(constraint.maxAmountBaseUnits)) {
+    const constraint = rule.constraint;
+    const bound =
+      constraint.kind === "USDC_APPROVE_AAVE"
+        ? {
+            address: constraint.spender,
+            maxAmountBaseUnits: constraint.maxAmountBaseUnits,
+          }
+        : constraint.kind === "USDC_APPROVE_BOUNDED_SPENDERS"
+          ? constraint.spenders.find(
+              (candidate) => candidate.address.toLowerCase() === spender,
+            )
+          : undefined;
+    if (!bound) return fail("USDC spender is not allowlisted");
+    if (BigInt(amount) > BigInt(bound.maxAmountBaseUnits)) {
       fail("USDC approval exceeds the manifest cap");
     }
     if (

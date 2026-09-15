@@ -4,14 +4,17 @@ version = "0.1.0"
 description = "A narrow HTTP boundary between Synesis and the Olas Mech client."
 requires-python = ">=3.11,<3.12"
 dependencies = [
-  "fastapi==0.116.1",
+  "eth-abi==5.2.0",
+  "eth-utils==6.0.0",
+  "fastapi==0.120.4",
+  "httpx==0.28.1",
+  "mech-client==0.22.0",
   "pydantic-settings==2.10.1",
   "uvicorn[standard]==0.35.0",
 ]
 
 [dependency-groups]
 dev = [
-  "httpx==0.28.1",
   "mypy==1.17.1",
   "pytest==8.4.1",
   "ruff==0.12.11",
@@ -39,3 +42,7 @@ python_version = "3.11"
 strict = true
 packages = ["synesis_olas"]
 mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["mech_client", "mech_client.*"]
+ignore_missing_imports = true

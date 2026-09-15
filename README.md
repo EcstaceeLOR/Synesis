@@ -84,3 +84,5 @@ All KeeperHub writes must use the [safe-execution client](docs/KEEPERHUB_SAFE_EX
 Completed writes pass through [independent receipt verification](docs/KEEPERHUB_RECEIPT_VERIFICATION.md), which freezes unconfirmed intents, reconciles the same execution ID, and requires KeeperHub and Base receipt hashes to agree.
 
 Every value-moving call must also match the [versioned Base deployment manifest](docs/DEPLOYMENT_MANIFEST.md), including pinned proxy implementations, bytecode hashes, exact ABI selectors, and hard spending bounds.
+
+The private [keyless Olas adapter](services/olas-adapter/README.md) pins the official Mech Client, normalizes current and legacy Mechs, publishes request envelopes, and produces KeeperHub-only transaction plans without exposing a signing key.

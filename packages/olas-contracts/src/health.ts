@@ -143,11 +143,15 @@ export const verifyDeploymentHealth = async (
       }
       checks.push(
         check(
-          `${contract.id}.proxy_code`,
+          contract.proxy.kind === "NONE"
+            ? `${contract.id}.runtime_code`
+            : `${contract.id}.proxy_code`,
           observedProxyHash,
           contract.runtimeCodeSha256,
         ),
       );
+
+      if (contract.proxy.kind === "NONE") continue;
 
       let rawImplementation: unknown;
       if (contract.proxy.kind === "CALL") {
