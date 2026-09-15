@@ -303,6 +303,32 @@ describe("KeeperHub pacing and protocol safety", () => {
     expect(evidence.pollAfterMs).toBe(0);
   });
 
+  it("reads one status snapshot for same-execution reconciliation", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      response({ executionId: "execution-789", status: "unconfirmed" }, 200, {
+        "x-poll-interval-hint": "30",
+      }),
+    );
+    const sleep = vi.fn(() => Promise.resolve());
+    const client = new SafeExecutionClient({
+      apiKey: "kh_example1234",
+      policy,
+      fetch: fetcher,
+      sleep,
+    });
+
+    const evidence = await client.getExecutionStatus(
+      "execution-789",
+      { payloadHash: `sha256:${"a".repeat(64)}`, idempotencyKey: "stable-key" },
+      identity,
+    );
+
+    expect(evidence.response.status).toBe("unconfirmed");
+    expect(evidence.pollAfterMs).toBe(30_000);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
   it("rejects undeclared protocol fields before network access", async () => {
     const fetcher = vi.fn<typeof fetch>();
     const client = new SafeExecutionClient({

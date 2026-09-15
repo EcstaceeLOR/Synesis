@@ -169,3 +169,4 @@ export class KeeperHubClient {
 }
 
 export * from "./safe-execution.js";
+export * from "./receipt-verification.js";
