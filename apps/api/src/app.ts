@@ -15,6 +15,11 @@ import {
   OlasGatewayError,
   OlasKeeperHubGateway,
 } from "./olas-gateway.js";
+import {
+  acceptOlasDelivery,
+  DeliveryWebhookError,
+  parseDeliveryWebhook,
+} from "./delivery-webhook.js";
 
 export interface BuildServerOptions {
   readonly store?: SynesisStore;
@@ -26,6 +31,7 @@ export interface BuildServerOptions {
   readonly mechDirectory?: MechDirectoryReader;
   readonly olasGateway?: Pick<OlasKeeperHubGateway, "submit">;
   readonly internalServiceToken?: string;
+  readonly deliveryWebhookSecret?: string;
 }
 
 export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
@@ -90,6 +96,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
       : undefined);
   const internalServiceToken =
     options.internalServiceToken ?? process.env.OLAS_ADAPTER_INTERNAL_TOKEN;
+  const deliveryWebhookSecret =
+    options.deliveryWebhookSecret ?? process.env.SYNESIS_OLAS_WEBHOOK_SECRET;
 
   server.register(cors, {
     origin: [...allowedOrigins],
@@ -136,6 +144,48 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
         return reply.status(500).send({
           code: "OLAS_GATEWAY_FAILED",
           message: "The Olas execution gateway failed",
+        });
+      }
+    },
+  );
+
+  server.post<{ Body: unknown }>(
+    "/webhooks/olas/delivery",
+    async (request, reply) => {
+      if (!deliveryWebhookSecret)
+        return reply.status(503).send({
+          code: "DELIVERY_WEBHOOK_UNCONFIGURED",
+          message: "Delivery webhook is not configured",
+        });
+      try {
+        const payload = parseDeliveryWebhook(request.body);
+        const result = await acceptOlasDelivery({
+          store:
+            store ??
+            (() => {
+              throw new DeliveryWebhookError(
+                "STORE_UNCONFIGURED",
+                "Persistence is not configured",
+                503,
+              );
+            })(),
+          payload,
+          signature:
+            typeof request.headers["x-synesis-signature"] === "string"
+              ? request.headers["x-synesis-signature"]
+              : undefined,
+          secret: deliveryWebhookSecret,
+        });
+        return { ...result, status: result.accepted ? "accepted" : "replayed" };
+      } catch (error) {
+        if (error instanceof DeliveryWebhookError)
+          return reply
+            .status(error.statusCode)
+            .send({ code: error.code, message: error.message });
+        request.log.error({ error }, "Olas delivery webhook failed");
+        return reply.status(500).send({
+          code: "DELIVERY_WEBHOOK_FAILED",
+          message: "Delivery webhook failed",
         });
       }
     },
