@@ -13,7 +13,7 @@ export const MARKETPLACE_REQUEST_TOPIC = `0x${bytesToHex(
       "MarketplaceRequest(address,address,uint256,bytes32[],bytes[])",
     ),
   ),
-)}` as Hex;
+)}`;
 
 export interface MarketplaceReceiptLog {
   readonly address: Address;
