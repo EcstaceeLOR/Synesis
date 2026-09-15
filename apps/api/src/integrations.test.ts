@@ -157,6 +157,18 @@ describe("live onboarding checks", () => {
       encryption,
       fetch: fetcher,
       now: () => new Date("2026-09-14T12:00:00.000Z"),
+      deploymentHealth: () =>
+        Promise.resolve({
+          manifestVersion: "base-test.1",
+          manifestHash: `sha256:${"ab".repeat(32)}`,
+          ready: true,
+          checkedAt: "2026-09-14T12:00:00.000Z",
+          checks: Array.from({ length: 10 }, (_, index) => ({
+            component: `deployment.${index}`,
+            status: "PASS" as const,
+            message: "matches",
+          })),
+        }),
     });
     const summary = await service.configureAndCheck("org-1", {
       keeperHubApiKey: "kh_example1234",
