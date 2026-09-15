@@ -370,10 +370,13 @@ export class OlasKeeperHubGateway {
         "APPROVAL_NOT_EXACT",
         "USDC approval must equal the frozen maximum",
       );
-    if (decoded.callId === "AAVE_SUPPLY")
+    if (
+      decoded.callId === "AAVE_SUPPLY" &&
+      BigInt(decoded.arguments.amount) !== BigInt(input.approvedMaximumAmount)
+    )
       throw new OlasGatewayError(
-        "WRONG_GATEWAY_PURPOSE",
-        "Olas gateway cannot execute Aave supply",
+        "AMOUNT_NOT_FROZEN",
+        "Aave supply amount must equal the frozen maximum",
       );
 
     const policy = executionPolicy(decoded, input.approvedMaximumAmount);
