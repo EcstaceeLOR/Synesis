@@ -42,6 +42,11 @@ export type IntegrationHealthCheckRecord =
 export type IntegrationConnectionRecord =
   typeof schema.integrationConnections.$inferSelect;
 export type WalletSnapshotRecord = typeof schema.walletSnapshots.$inferSelect;
+export type IntentMechRecord = typeof schema.intentMechs.$inferSelect;
+export type OlasRequestRecord = typeof schema.olasRequests.$inferSelect;
+export interface IntentMechSelectionRecord extends IntentMechRecord {
+  readonly mechAddress: string;
+}
 export type OrganizationRole = "viewer" | "operator" | "approver" | "owner";
 
 export interface SecurityAuditEventInput {
@@ -139,6 +144,17 @@ export interface ReadRepositories {
     ): Promise<IntentRecord | undefined>;
     listActive(): Promise<readonly IntentRecord[]>;
   };
+  readonly intentMechs: {
+    findByIntentAndMechAddress(
+      intentId: string,
+      mechAddress: string,
+    ): Promise<IntentMechSelectionRecord | undefined>;
+  };
+  readonly olasRequests: {
+    findByIntentMechId(
+      intentMechId: string,
+    ): Promise<OlasRequestRecord | undefined>;
+  };
   readonly events: {
     exists(source: string, eventKey: string): Promise<boolean>;
   };
@@ -229,7 +245,7 @@ export interface TransactionRepositories extends ReadRepositories {
       readonly outbox: OutboxMessageRecord;
     }>;
   };
-  readonly intentMechs: {
+  readonly intentMechs: ReadRepositories["intentMechs"] & {
     create(input: typeof schema.intentMechs.$inferInsert): Promise<void>;
   };
   readonly approvalDecisions: {
@@ -264,8 +280,12 @@ export interface TransactionRepositories extends ReadRepositories {
       readonly payloadHash: string;
     }): Promise<boolean>;
   };
-  readonly olasRequests: {
+  readonly olasRequests: ReadRepositories["olasRequests"] & {
     create(input: typeof schema.olasRequests.$inferInsert): Promise<void>;
+    reserve(input: typeof schema.olasRequests.$inferInsert): Promise<{
+      readonly request: OlasRequestRecord;
+      readonly created: boolean;
+    }>;
   };
   readonly keeperHubExecutions: ReadRepositories["keeperHubExecutions"] & {
     create(
@@ -279,6 +299,20 @@ export interface TransactionRepositories extends ReadRepositories {
       readonly id: string;
       readonly executionId: string;
     }): Promise<KeeperHubExecutionRecord>;
+    attachExecution(input: {
+      readonly id: string;
+      readonly executionId: string;
+      readonly status: string;
+    }): Promise<KeeperHubExecutionRecord>;
+    markStatus(input: {
+      readonly id: string;
+      readonly status: string;
+    }): Promise<KeeperHubExecutionRecord>;
+  };
+  readonly transactionReceipts: {
+    create(
+      input: typeof schema.transactionReceipts.$inferInsert,
+    ): Promise<void>;
   };
   readonly outbox: ReadRepositories["outbox"] & {
     enqueue(input: OutboxMessageInput): Promise<{
@@ -453,6 +487,38 @@ const createReadRepositories = (
         .select()
         .from(schema.intents)
         .where(notInArray(schema.intents.state, [...TERMINAL_INTENT_STATES])),
+  },
+  intentMechs: {
+    findByIntentAndMechAddress: async (intentId, mechAddress) => {
+      const rows = await database
+        .select({
+          intentMech: schema.intentMechs,
+          mechAddress: schema.mechs.address,
+        })
+        .from(schema.intentMechs)
+        .innerJoin(schema.mechs, eq(schema.intentMechs.mechId, schema.mechs.id))
+        .where(
+          and(
+            eq(schema.intentMechs.intentId, intentId),
+            sql`lower(${schema.mechs.address}) = lower(${mechAddress})`,
+          ),
+        )
+        .limit(1);
+      const row = rows[0];
+      return row
+        ? { ...row.intentMech, mechAddress: row.mechAddress }
+        : undefined;
+    },
+  },
+  olasRequests: {
+    findByIntentMechId: async (intentMechId) => {
+      const rows = await database
+        .select()
+        .from(schema.olasRequests)
+        .where(eq(schema.olasRequests.intentMechId, intentMechId))
+        .limit(1);
+      return rows[0];
+    },
   },
   events: {
     exists: async (source, eventKey) => {
@@ -747,6 +813,7 @@ const createTransactionRepositories = (
       },
     },
     intentMechs: {
+      ...read.intentMechs,
       create: async (input) => {
         await database.insert(schema.intentMechs).values(input);
       },
@@ -838,8 +905,26 @@ const createTransactionRepositories = (
       },
     },
     olasRequests: {
+      ...read.olasRequests,
       create: async (input) => {
         await database.insert(schema.olasRequests).values(input);
+      },
+      reserve: async (input) => {
+        const inserted = await database
+          .insert(schema.olasRequests)
+          .values(input)
+          .onConflictDoNothing()
+          .returning();
+        if (inserted[0]) return { request: inserted[0], created: true };
+        const existing = await read.olasRequests.findByIntentMechId(
+          input.intentMechId,
+        );
+        if (!existing || existing.requestId !== input.requestId) {
+          throw new PersistenceConflictError(
+            `Olas request ${input.requestId} conflicts with a persisted request`,
+          );
+        }
+        return { request: existing, created: false };
       },
     },
     keeperHubExecutions: {
@@ -882,6 +967,35 @@ const createTransactionRepositories = (
             `KeeperHub execution ${id} does not exist`,
           );
         return execution;
+      },
+      attachExecution: async ({ id, executionId, status }) => {
+        const updated = await database
+          .update(schema.keeperHubExecutions)
+          .set({ executionId, status, updatedAt: new Date().toISOString() })
+          .where(eq(schema.keeperHubExecutions.id, id))
+          .returning();
+        if (!updated[0])
+          throw new PersistenceConflictError(
+            `KeeperHub execution ${id} does not exist`,
+          );
+        return updated[0];
+      },
+      markStatus: async ({ id, status }) => {
+        const updated = await database
+          .update(schema.keeperHubExecutions)
+          .set({ status, updatedAt: new Date().toISOString() })
+          .where(eq(schema.keeperHubExecutions.id, id))
+          .returning();
+        if (!updated[0])
+          throw new PersistenceConflictError(
+            `KeeperHub execution ${id} does not exist`,
+          );
+        return updated[0];
+      },
+    },
+    transactionReceipts: {
+      create: async (input) => {
+        await database.insert(schema.transactionReceipts).values(input);
       },
     },
     outbox: {

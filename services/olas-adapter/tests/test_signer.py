@@ -39,6 +39,9 @@ def build_signer(poster: FakePoster) -> KeeperHubExternalSigner:
         gateway_url="http://api:8080/internal/v1/keeperhub/submit-call",
         internal_token=TOKEN,
         economic_intent_id="intent_123",
+        mech_address=ADDRESS,
+        approved_maximum_amount=123,
+        approval_reference="approval_123",
         manifest_version="base-v1",
         manifest_hash="sha256:" + "12" * 32,
         client=poster,
@@ -61,6 +64,7 @@ def test_unsigned_transaction_is_delegated_and_verified() -> None:
         == TX_HASH
     )
     assert poster.calls[0]["json"]["economicIntentId"] == "intent_123"
+    assert poster.calls[0]["json"]["approvedMaximumAmount"] == "123"
     assert poster.calls[0]["headers"]["authorization"] == f"Bearer {TOKEN}"
     assert signer.last_receipt is not None
 

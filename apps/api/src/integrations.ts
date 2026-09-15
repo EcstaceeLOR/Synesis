@@ -66,6 +66,11 @@ export interface IntegrationHealthSummary {
   readonly checks: readonly HealthResult[];
 }
 
+export interface ExecutionCredentials {
+  readonly keeperHubApiKey: string;
+  readonly baseRpcUrl: string;
+}
+
 interface EncryptedValue {
   readonly ciphertext: string;
   readonly initializationVector: string;
@@ -271,6 +276,31 @@ export class IntegrationService {
       readyAt: organization?.integrationsReadyAt ?? null,
       wallet: this.#walletFromChecks(checks),
       checks: checks.map(this.#publicCheck),
+    };
+  }
+
+  public async loadExecutionCredentials(
+    organizationId: string,
+  ): Promise<ExecutionCredentials> {
+    const [organization, stored] = await Promise.all([
+      this.#store.read.organizations.findById(organizationId),
+      this.#store.read.integrationSecrets.find(organizationId, "onboarding"),
+    ]);
+    if (organization?.integrationStatus !== "READY" || !stored) {
+      throw new Error(
+        "Organization integrations are not ready for value movement",
+      );
+    }
+    const plaintext = this.#encryption.decrypt(
+      stored,
+      `${organizationId}:onboarding`,
+    );
+    const credentials = validateIntegrationCredentials(
+      JSON.parse(plaintext) as IntegrationCredentials,
+    );
+    return {
+      keeperHubApiKey: credentials.keeperHubApiKey,
+      baseRpcUrl: credentials.baseRpcUrl,
     };
   }
 

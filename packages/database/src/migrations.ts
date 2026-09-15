@@ -48,6 +48,17 @@ const migrations = [
       import.meta.url,
     ),
   },
+  {
+    id: "0005_olas_procurement_uniqueness",
+    up: new URL(
+      "../migrations/0005_olas_procurement_uniqueness.up.sql",
+      import.meta.url,
+    ),
+    down: new URL(
+      "../migrations/0005_olas_procurement_uniqueness.down.sql",
+      import.meta.url,
+    ),
+  },
 ] as const;
 
 export interface MigrationOptions {

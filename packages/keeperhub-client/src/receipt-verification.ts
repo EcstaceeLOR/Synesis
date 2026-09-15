@@ -68,6 +68,7 @@ export interface ReceiptReconciliationResult {
   readonly transactionHash?: TransactionHash;
   readonly keeperHubReceiptHash?: string;
   readonly rpcReceiptHash?: string;
+  readonly receipt?: CanonicalReceiptFields;
   readonly keeperHubEvidence: KeeperHubEvidence;
 }
 
@@ -368,6 +369,7 @@ export class ReceiptVerificationClient {
       readonly transactionHash?: TransactionHash;
       readonly keeperHubReceiptHash?: string;
       readonly rpcReceiptHash?: string;
+      readonly receipt?: CanonicalReceiptFields;
     } = {},
   ): ReceiptReconciliationResult {
     const pending = classification === "UNCONFIRMED";
@@ -584,7 +586,7 @@ export class ReceiptVerificationClient {
         evidence,
         "VERIFIED_SUCCESS",
         "KeeperHub verification and independent Base receipt agree",
-        hashes,
+        { ...hashes, receipt: rpcFields },
       );
     }
     return this.#result(

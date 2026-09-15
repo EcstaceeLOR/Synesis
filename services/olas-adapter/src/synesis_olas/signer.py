@@ -39,6 +39,9 @@ class KeeperHubExternalSigner:
         gateway_url: str,
         internal_token: str,
         economic_intent_id: str,
+        mech_address: str,
+        approved_maximum_amount: int,
+        approval_reference: str,
         manifest_version: str,
         manifest_hash: str,
         client: HttpPoster | None = None,
@@ -62,6 +65,13 @@ class KeeperHubExternalSigner:
         self._gateway_url = str(parsed_url)
         self._internal_token = internal_token
         self._economic_intent_id = economic_intent_id
+        self._mech_address = mech_address
+        if approved_maximum_amount < 0:
+            raise ValueError("Approved maximum amount cannot be negative")
+        self._approved_maximum_amount = approved_maximum_amount
+        if len(approval_reference) < 8:
+            raise ValueError("Approval reference must contain at least 8 characters")
+        self._approval_reference = approval_reference
         self._manifest_version = manifest_version
         self._manifest_hash = manifest_hash
         self._client = client or httpx.Client()
@@ -99,6 +109,9 @@ class KeeperHubExternalSigner:
             self._gateway_url,
             json={
                 "economicIntentId": self._economic_intent_id,
+                "mechAddress": self._mech_address,
+                "approvedMaximumAmount": str(self._approved_maximum_amount),
+                "approvalReference": self._approval_reference,
                 "manifestVersion": self._manifest_version,
                 "manifestHash": self._manifest_hash,
                 "chainId": tx.chain_id,
