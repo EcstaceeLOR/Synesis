@@ -18,6 +18,7 @@
     "@synesis/domain": "workspace:*",
     "@synesis/keeperhub-client": "workspace:*",
     "@synesis/olas-contracts": "workspace:*",
+    "@synesis/observability": "workspace:*",
     "fastify": "^5.6.0",
     "jose": "6.2.12"
   },
