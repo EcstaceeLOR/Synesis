@@ -56,6 +56,9 @@ importers:
       '@synesis/olas-contracts':
         specifier: workspace:*
         version: link:../../packages/olas-contracts
+      '@synesis/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       fastify:
         specifier: ^5.6.0
         version: 5.12.4

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import {
@@ -7,6 +9,7 @@ import {
   verifyPublicProofBundle,
 } from "@synesis/domain";
 import { createSynesisStore, type SynesisStore } from "@synesis/database";
+import { dependencyHealth, MetricsRegistry } from "@synesis/observability";
 
 import {
   createOidcIdentityVerifier,
@@ -40,7 +43,32 @@ export interface BuildServerOptions {
 }
 
 export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
-  const server = Fastify({ logger: process.env.NODE_ENV !== "test" });
+  const metrics = new MetricsRegistry();
+  const server = Fastify({
+    logger:
+      process.env.NODE_ENV === "test"
+        ? false
+        : {
+            redact: {
+              paths: [
+                "req.headers.authorization",
+                "req.headers.cookie",
+                "req.body.apiKey",
+                "req.body.credentials",
+                "req.body.privateKey",
+                "req.body.secret",
+                "req.body.token",
+              ],
+              censor: "[REDACTED]",
+            },
+          },
+    genReqId: (request) => {
+      const supplied = request.headers["x-request-id"];
+      return typeof supplied === "string" && /^[\w-]{8,128}$/u.test(supplied)
+        ? supplied
+        : randomUUID();
+    },
+  });
   const ownedStore =
     options.store === undefined && process.env.DATABASE_URL
       ? createSynesisStore({ connectionString: process.env.DATABASE_URL })
@@ -110,13 +138,59 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     allowedHeaders: ["content-type", "x-csrf-token", "x-request-id"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
+  server.addHook("onSend", async (request, reply, payload) => {
+    reply.header("x-trace-id", request.id);
+    return payload;
+  });
+  server.addHook("onResponse", (request, reply, done) => {
+    metrics.increment("synesis_api_requests_total", {
+      method: request.method,
+      status: String(reply.statusCode),
+    });
+    done();
+  });
 
-  server.get("/health", () =>
-    createServiceHealth(
+  for (const name of [
+    "synesis_active_intents",
+    "synesis_lifecycle_latency_ms",
+    "synesis_mech_delivery_total",
+    "synesis_mech_schema_valid_total",
+    "synesis_quorum_outcomes_total",
+    "synesis_keeperhub_outcomes_total",
+    "synesis_duplicate_events_total",
+    "synesis_treasury_balance_base_units",
+    "synesis_remaining_policy_capacity_base_units",
+  ])
+    metrics.gauge(name, 0);
+
+  server.get("/health", () => {
+    const service = createServiceHealth(
       "api",
       environmentSchema.catch("demo").parse(process.env.SYNESIS_MODE),
       "0.1.0",
-    ),
+    );
+    const live = service.environment === "live";
+    const dependencies = dependencyHealth([
+      { name: "database", healthy: Boolean(store) || !live, critical: live },
+      {
+        name: "keeperhub",
+        healthy: Boolean(integrationService) || !live,
+        critical: live,
+      },
+      {
+        name: "olas",
+        healthy: Boolean(mechDirectory) || !live,
+        critical: false,
+      },
+    ]);
+    return {
+      ...service,
+      status: dependencies.status === "down" ? "error" : dependencies.status,
+      dependencies: dependencies.checks,
+    };
+  });
+  server.get("/metrics", (_request, reply) =>
+    reply.type("text/plain; version=0.0.4").send(metrics.render()),
   );
 
   server.get<{
@@ -203,8 +277,17 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
           message: "A valid internal service token is required",
         });
       try {
-        return await olasGateway.submit(request.body, request.id);
+        const result = await olasGateway.submit(request.body, request.id);
+        metrics.increment("synesis_keeperhub_outcomes_total", {
+          outcome: "submitted",
+        });
+        request.log.info({ traceId: request.id }, "KeeperHub call submitted");
+        return result;
       } catch (error) {
+        metrics.increment("synesis_keeperhub_outcomes_total", {
+          outcome:
+            error instanceof OlasGatewayError ? error.code : "unexpected_error",
+        });
         if (error instanceof OlasGatewayError)
           return reply.status(error.statusCode).send({
             code: error.code,
@@ -246,8 +329,23 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
               : undefined,
           secret: deliveryWebhookSecret,
         });
+        metrics.increment("synesis_mech_delivery_total", {
+          outcome: result.accepted ? "accepted" : "replayed",
+        });
+        metrics.increment("synesis_mech_schema_valid_total", {
+          valid: "true",
+        });
+        if (!result.accepted)
+          metrics.increment("synesis_duplicate_events_total");
         return { ...result, status: result.accepted ? "accepted" : "replayed" };
       } catch (error) {
+        metrics.increment("synesis_mech_delivery_total", {
+          outcome: "rejected",
+        });
+        if (error instanceof DeliveryWebhookError)
+          metrics.increment("synesis_mech_schema_valid_total", {
+            valid: error.code === "INVALID_PAYLOAD" ? "false" : "unknown",
+          });
         if (error instanceof DeliveryWebhookError)
           return reply
             .status(error.statusCode)
