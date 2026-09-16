@@ -69,6 +69,9 @@ Read the complete [system architecture](docs/ARCHITECTURE.md), including:
 - proof generation and independent verification;
 - deployment, testing, and live acceptance requirements.
 
+The implementation checklist and release gate are tracked in
+[EPIC_STATUS.md](docs/EPIC_STATUS.md).
+
 ## Initial product journey
 
 The first production journey is intentionally constrained to Base mainnet, USDC, two compatible Olas Mechs, and an Aave V3 USDC supply action. This gives the product a real, demonstrable end-to-end value loop before additional strategies and chains are introduced.
