@@ -4,6 +4,10 @@
 
 Synesis is an agent procurement and deterministic onchain execution platform. It pays live Olas Mech agents for independent analysis, evaluates their responses with a versioned policy, and uses KeeperHub to simulate, execute, and prove a bounded transaction through Aave V3 on Base.
 
+## Live demo
+
+[Open Synesis](https://synesis-web.vercel.app/)
+
 ## Core lifecycle
 
 ```text
