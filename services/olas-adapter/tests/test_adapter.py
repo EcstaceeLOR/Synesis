@@ -1,6 +1,8 @@
 """Domain tests for normalized, keyless Olas planning."""
 
+import json
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -122,6 +124,27 @@ def test_normalizes_marketplace_and_legacy_shapes() -> None:
     assert legacy.kind is MechKind.LEGACY
     assert marketplace.address == legacy.address == MECH
     assert normalize_discovery({"meches": [marketplace.model_dump()]})[0].service_id == 1722
+
+
+def test_replays_recorded_deployment_and_payment_contract_fixtures() -> None:
+    fixture_path = Path(__file__).parent / "fixtures" / "olas-contract-fixtures.json"
+    fixtures = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    for fixture in fixtures["deploymentShapes"]:
+        normalized = normalize_mech(fixture["record"])
+        assert normalized.kind.value == fixture["kind"]
+        assert normalized.address == MECH
+        assert normalized.service_id == 1722
+
+    for fixture in fixtures["paymentShapes"]:
+        adapter = service(FakeOlasClient(payment=fixture["payment"]))
+        if fixture["supported"]:
+            assert adapter.quote(
+                QuoteRequest(mech_address=MECH, tool="prediction-request")
+            ).payment_type == fixture["payment"]
+        else:
+            with pytest.raises(AdapterError, match="fixed-price USDC"):
+                adapter.quote(QuoteRequest(mech_address=MECH, tool="prediction-request"))
 
 
 def test_invalid_discovery_fails_closed() -> None:

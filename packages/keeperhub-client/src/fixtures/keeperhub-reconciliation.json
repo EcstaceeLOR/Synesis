@@ -1,0 +1,64 @@
+[
+  {
+    "name": "verified-success",
+    "keeperHub": {
+      "status": "completed",
+      "verified": true,
+      "receiptStatus": "success"
+    },
+    "rpcReceipt": "success",
+    "expectedClassification": "VERIFIED_SUCCESS"
+  },
+  {
+    "name": "reverted-call",
+    "keeperHub": {
+      "status": "completed",
+      "verified": true,
+      "receiptStatus": "reverted"
+    },
+    "rpcReceipt": "reverted",
+    "expectedClassification": "REVERTED"
+  },
+  {
+    "name": "delayed-rpc-persistence",
+    "keeperHub": {
+      "status": "completed",
+      "verified": true,
+      "receiptStatus": "success"
+    },
+    "rpcReceipt": null,
+    "expectedClassification": "UNCONFIRMED"
+  },
+  {
+    "name": "safe-inner-failure",
+    "keeperHub": {
+      "status": "completed",
+      "verified": true,
+      "receiptStatus": "success",
+      "safeInnerFailure": true
+    },
+    "rpcReceipt": "success",
+    "expectedClassification": "SAFE_INNER_FAILURE"
+  },
+  {
+    "name": "execution-timeout",
+    "keeperHub": {
+      "status": "unconfirmed",
+      "verified": false,
+      "receiptStatus": "unknown"
+    },
+    "rpcReceipt": null,
+    "deadline": "expired",
+    "expectedClassification": "TIMED_OUT"
+  },
+  {
+    "name": "still-unconfirmed",
+    "keeperHub": {
+      "status": "unconfirmed",
+      "verified": false,
+      "receiptStatus": "unknown"
+    },
+    "rpcReceipt": null,
+    "expectedClassification": "UNCONFIRMED"
+  }
+]
