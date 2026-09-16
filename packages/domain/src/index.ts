@@ -3,6 +3,7 @@ import { z } from "zod";
 export * from "./contracts.js";
 export * from "./quorum.js";
 export * from "./spending-limits.js";
+export * from "./proofs.js";
 export * from "./errors.js";
 export * from "./hashing.js";
 export * from "./json-schemas.js";

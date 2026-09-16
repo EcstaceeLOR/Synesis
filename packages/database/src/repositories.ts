@@ -45,6 +45,7 @@ export type IntegrationConnectionRecord =
 export type WalletSnapshotRecord = typeof schema.walletSnapshots.$inferSelect;
 export type IntentMechRecord = typeof schema.intentMechs.$inferSelect;
 export type OlasRequestRecord = typeof schema.olasRequests.$inferSelect;
+export type ProofBundleRecord = typeof schema.proofBundles.$inferSelect;
 export interface IntentMechSelectionRecord extends IntentMechRecord {
   readonly mechAddress: string;
 }
@@ -185,6 +186,9 @@ export interface ReadRepositories {
     findByExecutionId(
       keeperHubExecutionId: string,
     ): Promise<typeof schema.transactionReceipts.$inferSelect | undefined>;
+  };
+  readonly proofBundles: {
+    findByPublicId(publicId: string): Promise<ProofBundleRecord | undefined>;
   };
   readonly outbox: {
     findByMessageKey(
@@ -329,6 +333,9 @@ export interface TransactionRepositories extends ReadRepositories {
     create(
       input: typeof schema.transactionReceipts.$inferInsert,
     ): Promise<void>;
+  };
+  readonly proofBundles: ReadRepositories["proofBundles"] & {
+    create(input: typeof schema.proofBundles.$inferInsert): Promise<void>;
   };
   readonly outbox: ReadRepositories["outbox"] & {
     enqueue(input: OutboxMessageInput): Promise<{
@@ -629,6 +636,16 @@ const createReadRepositories = (
             keeperHubExecutionId,
           ),
         )
+        .limit(1);
+      return rows[0];
+    },
+  },
+  proofBundles: {
+    findByPublicId: async (publicId) => {
+      const rows = await database
+        .select()
+        .from(schema.proofBundles)
+        .where(eq(schema.proofBundles.publicId, publicId))
         .limit(1);
       return rows[0];
     },
@@ -1060,6 +1077,12 @@ const createTransactionRepositories = (
       ...read.transactionReceipts,
       create: async (input) => {
         await database.insert(schema.transactionReceipts).values(input);
+      },
+    },
+    proofBundles: {
+      ...read.proofBundles,
+      create: async (input) => {
+        await database.insert(schema.proofBundles).values(input);
       },
     },
     outbox: {
