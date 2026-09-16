@@ -1,0 +1,24 @@
+FROM node:24-bookworm-slim AS build
+
+WORKDIR /workspace
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
+COPY apps ./apps
+COPY packages ./packages
+RUN pnpm install --frozen-lockfile
+RUN pnpm build
+
+FROM node:24-bookworm-slim AS runtime
+
+WORKDIR /workspace
+RUN corepack enable
+COPY --from=build /workspace/package.json /workspace/pnpm-lock.yaml /workspace/pnpm-workspace.yaml /workspace/turbo.json ./
+COPY --from=build /workspace/node_modules ./node_modules
+COPY --from=build /workspace/apps ./apps
+COPY --from=build /workspace/packages ./packages
+COPY deploy/entrypoint.sh /usr/local/bin/synesis-entrypoint
+RUN chmod +x /usr/local/bin/synesis-entrypoint
+
+ENV NODE_ENV=production
+ENTRYPOINT ["/usr/local/bin/synesis-entrypoint"]

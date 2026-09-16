@@ -1,0 +1,165 @@
+name: synesis
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-synesis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synesis}
+      POSTGRES_DB: ${POSTGRES_DB:-synesis}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.node
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-synesis}:${POSTGRES_PASSWORD:-synesis}@postgres:5432/${POSTGRES_DB:-synesis}
+      SYNESIS_MODE: ${SYNESIS_MODE:-demo}
+      SYNESIS_LIVE_ACKNOWLEDGED: ${SYNESIS_LIVE_ACKNOWLEDGED:-}
+    command: ["pnpm", "--filter", "@synesis/database", "db:migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.node
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-synesis}:${POSTGRES_PASSWORD:-synesis}@postgres:5432/${POSTGRES_DB:-synesis}
+      REDIS_URL: redis://redis:6379
+      SYNESIS_API_PORT: 4000
+      SYNESIS_MODE: ${SYNESIS_MODE:-demo}
+      SYNESIS_LIVE_ACKNOWLEDGED: ${SYNESIS_LIVE_ACKNOWLEDGED:-}
+      SYNESIS_WEB_ORIGINS: ${SYNESIS_WEB_ORIGINS:-http://localhost:3000}
+      SYNESIS_SECRET_ENCRYPTION_KEY: ${SYNESIS_SECRET_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      OLAS_ADAPTER_URL: http://olas-adapter:8100
+      OLAS_ADAPTER_INTERNAL_TOKEN: ${OLAS_ADAPTER_INTERNAL_TOKEN:-synesis-demo-internal-token-change-me}
+    command: ["pnpm", "--filter", "@synesis/api", "start"]
+    ports:
+      - "${SYNESIS_API_PORT:-4000}:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.node
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-synesis}:${POSTGRES_PASSWORD:-synesis}@postgres:5432/${POSTGRES_DB:-synesis}
+      REDIS_URL: redis://redis:6379
+      SYNESIS_MODE: ${SYNESIS_MODE:-demo}
+      SYNESIS_LIVE_ACKNOWLEDGED: ${SYNESIS_LIVE_ACKNOWLEDGED:-}
+    command: ["pnpm", "--filter", "@synesis/worker", "start"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  olas-adapter:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.olas
+    environment:
+      SYNESIS_MODE: ${SYNESIS_MODE:-demo}
+      SYNESIS_LIVE_ACKNOWLEDGED: ${SYNESIS_LIVE_ACKNOWLEDGED:-}
+      OLAS_ADAPTER_INTERNAL_TOKEN: ${OLAS_ADAPTER_INTERNAL_TOKEN:-synesis-demo-internal-token-change-me}
+      KEEPERHUB_GATEWAY_URL: http://api:4000/internal/v1/keeperhub/submit-call
+    expose:
+      - "8100"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.node
+    environment:
+      SYNESIS_MODE: ${SYNESIS_MODE:-demo}
+      SYNESIS_LIVE_ACKNOWLEDGED: ${SYNESIS_LIVE_ACKNOWLEDGED:-}
+      NEXT_PUBLIC_API_ORIGIN: ${NEXT_PUBLIC_API_ORIGIN:-http://localhost:4000}
+    command:
+      [
+        "pnpm",
+        "--filter",
+        "@synesis/web",
+        "exec",
+        "next",
+        "start",
+        "--hostname",
+        "0.0.0.0",
+        "--port",
+        "3000",
+      ]
+    ports:
+      - "${SYNESIS_WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/app').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:

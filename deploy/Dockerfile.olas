@@ -1,0 +1,13 @@
+FROM ghcr.io/astral-sh/uv:0.8.17-python3.11-bookworm-slim
+
+WORKDIR /service
+COPY services/olas-adapter/pyproject.toml services/olas-adapter/uv.lock ./
+RUN uv sync --locked --no-dev
+COPY services/olas-adapter/src ./src
+COPY deploy/entrypoint.sh /usr/local/bin/synesis-entrypoint
+RUN chmod +x /usr/local/bin/synesis-entrypoint
+
+ENV PATH="/service/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENTRYPOINT ["/usr/local/bin/synesis-entrypoint"]
+CMD ["uvicorn", "synesis_olas.main:app", "--host", "0.0.0.0", "--port", "8100"]
