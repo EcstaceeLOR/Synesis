@@ -144,7 +144,9 @@ def test_replays_recorded_deployment_and_payment_contract_fixtures() -> None:
             ).payment_type == fixture["payment"]
         else:
             with pytest.raises(AdapterError, match="fixed-price USDC"):
-                adapter.quote(QuoteRequest(mech_address=MECH, tool="prediction-request"))
+                adapter.quote(
+                    QuoteRequest(mech_address=MECH, tool="prediction-request")
+                )
 
 
 def test_invalid_discovery_fails_closed() -> None:
