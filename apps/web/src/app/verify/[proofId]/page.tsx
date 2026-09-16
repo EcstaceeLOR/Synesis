@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { ProductPage } from "../../../components/product-page";
 import { loadProductPage } from "../../../lib/page-data";
+import { PublicProofVerifier } from "../../../components/public-proof-verifier";
 
 export default async function PublicProofPage({
   params,
@@ -21,7 +22,11 @@ export default async function PublicProofPage({
         </Link>
         <EnvironmentBadge mode={mode} />
       </nav>
-      <ProductPage state={await loadProductPage("proof-detail", proofId)} />
+      {mode === "live" ? (
+        <PublicProofVerifier proofId={proofId} />
+      ) : (
+        <ProductPage state={await loadProductPage("proof-detail", proofId)} />
+      )}
     </main>
   );
 }

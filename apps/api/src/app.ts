@@ -1,6 +1,11 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
-import { createServiceHealth, environmentSchema } from "@synesis/domain";
+import {
+  createServiceHealth,
+  environmentSchema,
+  serializePublicProofBundle,
+  verifyPublicProofBundle,
+} from "@synesis/domain";
 import { createSynesisStore, type SynesisStore } from "@synesis/database";
 
 import {
@@ -113,6 +118,49 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
       "0.1.0",
     ),
   );
+
+  server.get<{
+    Params: { publicId: string };
+    Querystring: { download?: string };
+  }>("/api/v1/proofs/:publicId", async (request, reply) => {
+    if (!store)
+      return reply.status(503).send({
+        code: "PROOF_STORE_UNAVAILABLE",
+        message: "Proof persistence is not configured",
+      });
+    const record = await store.read.proofBundles.findByPublicId(
+      request.params.publicId,
+    );
+    if (!record)
+      return reply.status(404).send({
+        code: "PROOF_NOT_FOUND",
+        message: "Public proof was not found",
+      });
+    try {
+      const result = await verifyPublicProofBundle(record.canonicalBundle);
+      if (!result.valid)
+        return reply.status(409).send({
+          code: "PROOF_TAMPERED",
+          message: "Proof verification failed",
+          invalidPositions: result.invalidPositions,
+        });
+      if (request.query.download === "1") {
+        return reply
+          .header(
+            "content-disposition",
+            `attachment; filename="${result.bundle.publicId}.json"`,
+          )
+          .type("application/json")
+          .send(serializePublicProofBundle(result.bundle));
+      }
+      return { valid: true, bundle: result.bundle };
+    } catch {
+      return reply.status(409).send({
+        code: "PROOF_INVALID",
+        message: "Stored proof is malformed",
+      });
+    }
+  });
 
   server.get("/api/v1/activity", () => ({
     events: [],
