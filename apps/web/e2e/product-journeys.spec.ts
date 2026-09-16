@@ -90,7 +90,10 @@ test.describe("Synesis connected product journeys", () => {
     await expect(
       page.getByRole("dialog", { name: /Jump to a Synesis surface/i }),
     ).toBeVisible();
-    await page.getByRole("link", { name: "Executions" }).click();
+    await page
+      .getByRole("dialog", { name: /Jump to a Synesis surface/i })
+      .getByRole("link", { name: "Executions" })
+      .click();
     await expect(page).toHaveURL(/\/app\/executions$/u);
   });
 
