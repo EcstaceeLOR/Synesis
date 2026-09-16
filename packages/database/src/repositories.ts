@@ -5,6 +5,7 @@ import { isTerminalIntentState, TERMINAL_INTENT_STATES } from "@synesis/domain";
 import {
   and,
   asc,
+  desc,
   eq,
   gt,
   inArray,
@@ -106,6 +107,11 @@ export interface ReadRepositories {
   readonly organizations: {
     findById(id: string): Promise<OrganizationRecord | undefined>;
   };
+  readonly walletSnapshots: {
+    findLatestForOrganization(
+      organizationId: string,
+    ): Promise<WalletSnapshotRecord | undefined>;
+  };
   readonly integrationSecrets: {
     find(
       organizationId: string,
@@ -169,6 +175,16 @@ export interface ReadRepositories {
       idempotencyKey: string,
     ): Promise<KeeperHubExecutionRecord | undefined>;
     countForIntentPurpose(intentId: string, purpose: string): Promise<number>;
+    findById(id: string): Promise<KeeperHubExecutionRecord | undefined>;
+    listForOrganization(
+      organizationId: string,
+      limit: number,
+    ): Promise<readonly KeeperHubExecutionRecord[]>;
+  };
+  readonly transactionReceipts: {
+    findByExecutionId(
+      keeperHubExecutionId: string,
+    ): Promise<typeof schema.transactionReceipts.$inferSelect | undefined>;
   };
   readonly outbox: {
     findByMessageKey(
@@ -269,7 +285,7 @@ export interface TransactionRepositories extends ReadRepositories {
       input: typeof schema.integrationHealthChecks.$inferInsert,
     ): Promise<void>;
   };
-  readonly walletSnapshots: {
+  readonly walletSnapshots: ReadRepositories["walletSnapshots"] & {
     create(input: typeof schema.walletSnapshots.$inferInsert): Promise<void>;
   };
   readonly events: ReadRepositories["events"] & {
@@ -309,7 +325,7 @@ export interface TransactionRepositories extends ReadRepositories {
       readonly status: string;
     }): Promise<KeeperHubExecutionRecord>;
   };
-  readonly transactionReceipts: {
+  readonly transactionReceipts: ReadRepositories["transactionReceipts"] & {
     create(
       input: typeof schema.transactionReceipts.$inferInsert,
     ): Promise<void>;
@@ -379,6 +395,17 @@ const createReadRepositories = (
         .select()
         .from(schema.organizations)
         .where(eq(schema.organizations.id, id))
+        .limit(1);
+      return rows[0];
+    },
+  },
+  walletSnapshots: {
+    findLatestForOrganization: async (organizationId) => {
+      const rows = await database
+        .select()
+        .from(schema.walletSnapshots)
+        .where(eq(schema.walletSnapshots.organizationId, organizationId))
+        .orderBy(desc(schema.walletSnapshots.capturedAt))
         .limit(1);
       return rows[0];
     },
@@ -569,6 +596,41 @@ const createReadRepositories = (
           ),
         );
       return rows[0]?.count ?? 0;
+    },
+    findById: async (id) => {
+      const rows = await database
+        .select()
+        .from(schema.keeperHubExecutions)
+        .where(eq(schema.keeperHubExecutions.id, id))
+        .limit(1);
+      return rows[0];
+    },
+    listForOrganization: (organizationId, limit) =>
+      database
+        .select({ execution: schema.keeperHubExecutions })
+        .from(schema.keeperHubExecutions)
+        .innerJoin(
+          schema.intents,
+          eq(schema.keeperHubExecutions.intentId, schema.intents.id),
+        )
+        .where(eq(schema.intents.organizationId, organizationId))
+        .orderBy(desc(schema.keeperHubExecutions.createdAt))
+        .limit(Math.min(Math.max(limit, 1), 100))
+        .then((rows) => rows.map(({ execution }) => execution)),
+  },
+  transactionReceipts: {
+    findByExecutionId: async (keeperHubExecutionId) => {
+      const rows = await database
+        .select()
+        .from(schema.transactionReceipts)
+        .where(
+          eq(
+            schema.transactionReceipts.keeperHubExecutionId,
+            keeperHubExecutionId,
+          ),
+        )
+        .limit(1);
+      return rows[0];
     },
   },
   outbox: {
@@ -887,6 +949,7 @@ const createTransactionRepositories = (
       },
     },
     walletSnapshots: {
+      ...read.walletSnapshots,
       create: async (input) => {
         await database.insert(schema.walletSnapshots).values(input);
       },
@@ -994,6 +1057,7 @@ const createTransactionRepositories = (
       },
     },
     transactionReceipts: {
+      ...read.transactionReceipts,
       create: async (input) => {
         await database.insert(schema.transactionReceipts).values(input);
       },

@@ -1,5 +1,6 @@
 import { ProductPage } from "../../../../components/product-page";
 import { loadProductPage } from "../../../../lib/page-data";
+import { ChainFreshness } from "../../../../components/execution-ledger-filters";
 
 export default async function ExecutionDetailPage({
   params,
@@ -7,5 +8,10 @@ export default async function ExecutionDetailPage({
   readonly params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <ProductPage state={await loadProductPage("execution-detail", id)} />;
+  return (
+    <>
+      <ChainFreshness label={`Execution ${id}`} />
+      <ProductPage state={await loadProductPage("execution-detail", id)} />
+    </>
+  );
 }

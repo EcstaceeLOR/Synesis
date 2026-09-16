@@ -992,4 +992,172 @@ export const registerAuthRoutes = (
       return reply.status(204).send();
     },
   );
+
+  server.get<{
+    Params: { key: string };
+    Querystring: { id?: string };
+  }>("/api/v1/ui/:key", async (request, reply) => {
+    const context = await authenticate(request, reply);
+    if (!context || !store) return;
+    const membership = (
+      await store.read.memberships.listForUser(context.user.id)
+    )[0];
+    if (!membership)
+      return sendError(
+        reply,
+        404,
+        "ORGANIZATION_NOT_FOUND",
+        "Organization not found",
+      );
+    const organizationId = membership.organizationId;
+    const updatedAt = now().toISOString();
+    if (request.params.key === "executions") {
+      const executions =
+        await store.read.keeperHubExecutions.listForOrganization(
+          organizationId,
+          50,
+        );
+      return {
+        eyebrow: "Execution ledger / KeeperHub",
+        title: "Verified economic actions",
+        description:
+          "Persisted simulations, broadcasts, and independently reconciled outcomes.",
+        updatedAt,
+        metrics: [
+          {
+            label: "Executions",
+            value: String(executions.length),
+            detail: "Latest 50",
+          },
+          {
+            label: "Succeeded",
+            value: String(
+              executions.filter((item) => item.economicSuccess).length,
+            ),
+            detail: "Receipt verified",
+            accent: true,
+          },
+        ],
+        listTitle: "KeeperHub execution ledger",
+        listDescription: "Every row has a stable economic idempotency key.",
+        rows: executions.map((execution) => ({
+          id: execution.id,
+          primary: execution.purpose,
+          secondary: execution.executionId ?? "Reserved before broadcast",
+          value: execution.createdAt,
+          meta: execution.idempotencyKey,
+          status: execution.economicSuccess
+            ? "VERIFIED"
+            : execution.status.toUpperCase(),
+          tone: execution.economicSuccess
+            ? "positive"
+            : execution.status.includes("fail")
+              ? "critical"
+              : "warning",
+          href: `/app/executions/${execution.id}`,
+        })),
+      };
+    }
+    if (request.params.key === "execution-detail" && request.query.id) {
+      const execution = (
+        await store.read.keeperHubExecutions.listForOrganization(
+          organizationId,
+          100,
+        )
+      ).find((item) => item.id === request.query.id);
+      if (!execution) return reply.status(404).send();
+      const receipt = await store.read.transactionReceipts.findByExecutionId(
+        execution.id,
+      );
+      return {
+        eyebrow: `Execution / ${execution.id}`,
+        title: execution.purpose,
+        description:
+          "Canonical KeeperHub request and independently verified Base receipt.",
+        updatedAt,
+        metrics: [
+          {
+            label: "Status",
+            value: execution.status.toUpperCase(),
+            detail: execution.economicSuccess
+              ? "Economic success"
+              : "Not finalized",
+            accent: execution.economicSuccess,
+          },
+          {
+            label: "Block",
+            value:
+              receipt?.blockNumber === null ||
+              receipt?.blockNumber === undefined
+                ? "Pending"
+                : String(receipt.blockNumber),
+            detail: "Independent RPC",
+          },
+        ],
+        listTitle: "Execution evidence",
+        listDescription:
+          "Hashes, receipt, retry identity, and transaction evidence.",
+        rows: [
+          {
+            id: "payload",
+            primary: "Simulation payload",
+            secondary: execution.simulationHash,
+            value: "KeeperHub",
+            meta: execution.idempotencyKey,
+            status: "BOUND",
+            tone: "info",
+          },
+          {
+            id: "receipt",
+            primary: "Base receipt",
+            secondary: receipt?.transactionHash ?? "No transaction hash",
+            value: receipt?.observedAt ?? "Pending",
+            meta: receipt?.rawReceiptHash ?? "Awaiting RPC evidence",
+            status: receipt?.verified ? "VERIFIED" : "UNCONFIRMED",
+            tone: receipt?.verified ? "positive" : "warning",
+            ...(receipt?.transactionHash
+              ? { href: `https://basescan.org/tx/${receipt.transactionHash}` }
+              : {}),
+          },
+        ],
+      };
+    }
+    if (request.params.key === "treasury") {
+      const snapshot =
+        await store.read.walletSnapshots.findLatestForOrganization(
+          organizationId,
+        );
+      if (!snapshot) return reply.status(404).send();
+      return {
+        eyebrow: "Value & evidence / Treasury",
+        title: "Bounded capital",
+        description:
+          "Independent Base balance snapshot for the KeeperHub organization wallet.",
+        updatedAt: snapshot.capturedAt,
+        metrics: [
+          {
+            label: "Available USDC",
+            value: snapshot.usdcBalance,
+            detail: `Block ${snapshot.blockNumber}`,
+            accent: true,
+          },
+          { label: "ETH for gas", value: snapshot.ethBalance, detail: "Base" },
+        ],
+        listTitle: "Capital surfaces",
+        listDescription: "Read-only persisted chain snapshots.",
+        rows: [
+          {
+            id: "wallet",
+            primary: "KeeperHub organization wallet",
+            secondary: snapshot.walletAddress,
+            value: snapshot.usdcBalance,
+            meta: `Base block ${snapshot.blockNumber}`,
+            status: "VERIFIED",
+            tone: "positive",
+          },
+        ],
+      };
+    }
+    return reply.status(404).send();
+  });
 };
