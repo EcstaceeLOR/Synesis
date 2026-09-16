@@ -10,6 +10,7 @@
   "scripts": {
     "build": "turbo run build --concurrency=2",
     "dev": "turbo run dev --parallel",
+    "acceptance:live": "node scripts/live-acceptance.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo run lint --concurrency=2",
