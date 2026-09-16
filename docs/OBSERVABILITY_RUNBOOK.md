@@ -12,15 +12,3 @@ All alerts are investigated by trace ID. Never retry a value-moving action with 
 | `PROOF_MISMATCH`       | Recalculate every public entry hash and the ordered root.               | Quarantine the bundle, preserve source evidence, rebuild deterministically, and never publish the mismatched proof.              |
 
 Metrics cover active intents by state, lifecycle latency, Mech delivery and schema validity, quorum outcomes, KeeperHub outcomes, duplicate suppression, treasury balance, and remaining capacity.
-
-## Incident boundaries
-
-Pause new approvals when any critical alert is active. Preserve the original
-trace ID, intent ID, economic idempotency key, receipt payload, and proof
-inputs before attempting recovery. Only read-only health, receipt
-reconciliation, and proof verification are safe during an incident; never
-retry a value-moving call with a new key. If credentials, a manifest, or a
-receipt may be compromised, revoke/rotate the affected integration and require
-fresh owner approval before resuming. A post-incident report must include the
-timeline, impacted intents, duplicate-suppression result, final treasury and
-position deltas, and the exact recovery commands used.

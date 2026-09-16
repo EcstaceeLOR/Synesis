@@ -54,10 +54,6 @@ uv run mypy src tests
 uv run pytest
 ```
 
-For a fully provisioned local stack with PostgreSQL, Redis, API, worker, and
-Olas adapter, use the [deployment guide](deploy/README.md). It defaults to
-no-funds demo mode and fails closed if live acknowledgement is missing.
-
 ## Architecture
 
 Read the complete [system architecture](docs/ARCHITECTURE.md), including:
@@ -82,11 +78,6 @@ The first production journey is intentionally constrained to Base mainnet, USDC,
 - Contract targets, selectors, amounts, and chain IDs are allowlisted and capped.
 
 See [integration onboarding](docs/INTEGRATION_ONBOARDING.md) for the live dependency checks, encrypted credential boundary, and readiness gate.
-
-The authorized low-value Base acceptance procedure is documented in
-[LIVE_ACCEPTANCE.md](docs/LIVE_ACCEPTANCE.md). The four-minute judge flow and
-final artifact checklist are in [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) and
-[SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md).
 
 All KeeperHub writes must use the [safe-execution client](docs/KEEPERHUB_SAFE_EXECUTION.md), which binds simulation to broadcast with canonical payload hashes and fail-before-network allowlists.
 
