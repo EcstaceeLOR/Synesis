@@ -1,7 +1,4 @@
 import { defineConfig } from "@playwright/test";
-import { fileURLToPath } from "node:url";
-
-const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export default defineConfig({
   testDir: "./e2e",
@@ -18,9 +15,9 @@ export default defineConfig({
   ...(process.env.PLAYWRIGHT_BASE_URL
     ? {}
     : {
-        webServer: {
-          command: "corepack pnpm --filter @synesis/web dev",
-          cwd: workspaceRoot,
+      webServer: {
+        command: "corepack pnpm --filter @synesis/web dev",
+        cwd: "../..",
           url: "http://127.0.0.1:3000",
           reuseExistingServer: !process.env.CI,
           timeout: 120_000,
