@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function IntentRoomActions({ intentId }: { readonly intentId: string }) {
   const [message, setMessage] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   return (
     <div className="page-actions" aria-label="Intent actions">
       <button
         className="primary-action"
+        disabled={!hydrated}
         type="button"
         onClick={() => setMessage(`Approval recorded for ${intentId}`)}
       >
