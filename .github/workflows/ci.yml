@@ -61,6 +61,8 @@ jobs:
       - run: pnpm --filter @synesis/database db:rollback
       - run: pnpm --filter @synesis/database db:migrate
       - run: pnpm test
+      - run: pnpm --filter @synesis/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @synesis/web e2e
       - run: pnpm build
 
   python:
