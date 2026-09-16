@@ -139,14 +139,15 @@ def test_replays_recorded_deployment_and_payment_contract_fixtures() -> None:
     for fixture in fixtures["paymentShapes"]:
         adapter = service(FakeOlasClient(payment=fixture["payment"]))
         if fixture["supported"]:
-            assert adapter.quote(
-                QuoteRequest(mech_address=MECH, tool="prediction-request")
-            ).payment_type == fixture["payment"]
-        else:
-            with pytest.raises(AdapterError, match="fixed-price USDC"):
+            assert (
                 adapter.quote(
                     QuoteRequest(mech_address=MECH, tool="prediction-request")
-                )
+                ).payment_type
+                == fixture["payment"]
+            )
+        else:
+            with pytest.raises(AdapterError, match="fixed-price USDC"):
+                adapter.quote(QuoteRequest(mech_address=MECH, tool="prediction-request"))
 
 
 def test_invalid_discovery_fails_closed() -> None:
