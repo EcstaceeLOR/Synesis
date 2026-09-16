@@ -56,6 +56,7 @@ export function IntentWizardForm() {
           </span>
           <input
             aria-label="Amount"
+            disabled={!hydrated}
             inputMode="numeric"
             value={amount}
             onChange={(event) =>

@@ -47,7 +47,9 @@ test.describe("Synesis connected product journeys", () => {
     await page.getByRole("link", { name: /Create intent/i }).click();
     await expect(page).toHaveURL(/\/app\/intents\/new$/u);
 
-    await page.getByLabel("Amount").fill("1000000");
+    const amount = page.getByLabel("Amount");
+    await expect(amount).toBeEnabled();
+    await amount.fill("1000000");
     await expect(page.getByText("VALIDATED", { exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByLabel("Amount")).toHaveValue("1000000");
@@ -69,6 +71,7 @@ test.describe("Synesis connected product journeys", () => {
     await expect(page.getByText(/AWAITING/i).first()).toBeVisible();
 
     const approve = page.getByRole("button", { name: /Approve execution/i });
+    await expect(approve).toBeEnabled();
     await approve.click();
     await approve.click();
     await expect(page.getByText("Approval recorded for SYN-1042")).toHaveCount(
@@ -80,6 +83,9 @@ test.describe("Synesis connected product journeys", () => {
     page,
   }) => {
     await page.goto("/app");
+    await expect(
+      page.getByRole("button", { name: "Open command palette" }),
+    ).toBeEnabled();
     await page.keyboard.press("Control+k");
     await expect(
       page.getByRole("dialog", { name: /Jump to a Synesis surface/i }),

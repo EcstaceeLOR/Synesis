@@ -57,6 +57,7 @@ export function AppShell({ mode, children }: AppShellProps) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
+  const [hydrated, setHydrated] = useState(false);
   const pathname = usePathname();
   const mobileMenu = useRef<HTMLDetailsElement>(null);
   const commandButton = useRef<HTMLButtonElement>(null);
@@ -65,6 +66,7 @@ export function AppShell({ mode, children }: AppShellProps) {
   const previousPathname = useRef(pathname);
 
   useEffect(() => {
+    setHydrated(true);
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setActivityOpen(false);
@@ -133,6 +135,7 @@ export function AppShell({ mode, children }: AppShellProps) {
             <button
               ref={commandButton}
               className="command-button"
+              disabled={!hydrated}
               type="button"
               aria-label="Open command palette"
               aria-expanded={commandOpen}
