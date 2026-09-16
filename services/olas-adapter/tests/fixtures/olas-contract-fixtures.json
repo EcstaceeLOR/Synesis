@@ -1,0 +1,32 @@
+{
+  "deploymentShapes": [
+    {
+      "name": "marketplace-subgraph",
+      "record": {
+        "address": "0x1111111111111111111111111111111111111111",
+        "mechFactory": "0x97371b1c0cda1d04dfc43dfb50a04645b7bc9bee",
+        "totalDeliveriesTransactions": "42",
+        "service": {
+          "id": "1722",
+          "metadata": { "metadata": { "tools": ["prediction-request"] } }
+        }
+      },
+      "kind": "marketplace"
+    },
+    {
+      "name": "supported-legacy-alias",
+      "record": {
+        "agentAddress": "0x1111111111111111111111111111111111111111",
+        "factoryAddress": "0x97371b1c0cda1d04dfc43dfb50a04645b7bc9bee",
+        "serviceId": 1722,
+        "totalDeliveries": 7,
+        "tools": ["prediction-request"]
+      },
+      "kind": "legacy"
+    }
+  ],
+  "paymentShapes": [
+    { "payment": "USDC_TOKEN", "supported": true },
+    { "payment": "NATIVE", "supported": false }
+  ]
+}
