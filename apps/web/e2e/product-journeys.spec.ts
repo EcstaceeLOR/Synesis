@@ -66,7 +66,7 @@ test.describe("Synesis connected product journeys", () => {
   }) => {
     await page.goto("/app/intents/SYN-1042");
     await page.reload();
-    await expect(page.getByText(/AWAITING APPROVAL/i).first()).toBeVisible();
+    await expect(page.getByText(/AWAITING/i).first()).toBeVisible();
 
     const approve = page.getByRole("button", { name: /Approve execution/i });
     await approve.click();

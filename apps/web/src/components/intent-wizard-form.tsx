@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export function IntentWizardForm() {
   const [amount, setAmount] = useState("");
   const [expiry, setExpiry] = useState("24");
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     const saved = window.localStorage.getItem("synesis.intent.draft");
     if (saved) {
@@ -12,13 +13,15 @@ export function IntentWizardForm() {
       setAmount(draft.amount ?? "");
       setExpiry(draft.expiry ?? "24");
     }
+    setHydrated(true);
   }, []);
   useEffect(() => {
+    if (!hydrated) return;
     window.localStorage.setItem(
       "synesis.intent.draft",
       JSON.stringify({ amount, expiry }),
     );
-  }, [amount, expiry]);
+  }, [amount, expiry, hydrated]);
   const valid =
     /^\d+$/.test(amount) &&
     Number(amount) > 0 &&

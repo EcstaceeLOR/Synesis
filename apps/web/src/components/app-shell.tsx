@@ -62,6 +62,7 @@ export function AppShell({ mode, children }: AppShellProps) {
   const commandButton = useRef<HTMLButtonElement>(null);
   const commandInput = useRef<HTMLInputElement>(null);
   const commandWasOpen = useRef(false);
+  const previousPathname = useRef(pathname);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -80,6 +81,8 @@ export function AppShell({ mode, children }: AppShellProps) {
   }, []);
 
   useEffect(() => {
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
     mobileMenu.current?.removeAttribute("open");
     setCommandOpen(false);
     setCommandQuery("");
