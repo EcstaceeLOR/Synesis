@@ -1,0 +1,14 @@
+.git
+.github
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/__pycache__
+**/.pytest_cache
+services/olas-adapter/.venv
+playwright-report
+test-results
+.env
+.env.*
+!.env.example
