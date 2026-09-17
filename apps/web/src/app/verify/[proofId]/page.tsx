@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ProductPage } from "../../../components/product-page";
 import { loadProductPage } from "../../../lib/page-data";
 import { PublicProofVerifier } from "../../../components/public-proof-verifier";
+import { BrandMark } from "../../../components/brand-mark";
 
 export default async function PublicProofPage({
   params,
@@ -16,17 +17,16 @@ export default async function PublicProofPage({
     <main className="public-proof-shell">
       <nav aria-label="Public proof navigation">
         <Link className="app-brand" href="/">
-          <span>S</span>
+          <BrandMark size={38} />
           <strong>SYNESIS</strong>
           <small>Public verifier</small>
         </Link>
         <EnvironmentBadge mode={mode} />
       </nav>
-      {mode === "live" ? (
-        <PublicProofVerifier proofId={proofId} />
-      ) : (
+      <PublicProofVerifier proofId={proofId} />
+      {mode === "demo" ? (
         <ProductPage state={await loadProductPage("proof-detail", proofId)} />
-      )}
+      ) : null}
     </main>
   );
 }

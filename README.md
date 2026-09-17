@@ -8,6 +8,17 @@ Synesis is an agent procurement and deterministic onchain execution platform. It
 
 [Open Synesis](https://synesis-web.vercel.app/)
 
+- **Interactive product:** [synesis-web.vercel.app](https://synesis-web.vercel.app/)
+- **Deployed backend health:** [synesis-web.vercel.app/api/v1/status](https://synesis-web.vercel.app/api/v1/status)
+- **Public proof:** [Verify PRF-1041](https://synesis-web.vercel.app/verify/PRF-1041)
+
+The Vercel deployment includes a serverless backend-for-frontend for the complete
+interactive demo: Olas Mech discovery, bounded intent creation, idempotent
+approval, exact-call simulation, emergency pause, activity streaming, and
+canonical proof download. Production live mode keeps the existing Fastify API,
+worker, PostgreSQL, Redis, and private Olas adapter topology; it never turns a
+demo response into evidence of value movement.
+
 ## Core lifecycle
 
 ```text
@@ -79,6 +90,14 @@ The implementation checklist and release gate are tracked in
 ## Initial product journey
 
 The first production journey is intentionally constrained to Base mainnet, USDC, two compatible Olas Mechs, and an Aave V3 USDC supply action. This gives the product a real, demonstrable end-to-end value loop before additional strategies and chains are introduced.
+
+## Judge walkthrough
+
+1. Open the command center and confirm the backend-connected indicator.
+2. Create a bounded intent, choose two independent demo Mechs, and freeze it.
+3. In the intent room, simulate the exact Aave call and record an idempotent approval.
+4. Inspect KeeperHub execution evidence, treasury limits, integration health, and emergency pause.
+5. Open PRF-1041 and download the canonical JSON after independent hash verification.
 
 ## Safety
 

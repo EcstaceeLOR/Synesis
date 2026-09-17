@@ -5,8 +5,12 @@ export async function PublicProofVerifier({
 }: {
   readonly proofId: string;
 }) {
+  const vercelOrigin =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
   const apiOrigin =
-    process.env.SYNESIS_API_INTERNAL_URL ?? "http://localhost:4000";
+    process.env.SYNESIS_API_INTERNAL_URL ??
+    process.env.SYNESIS_PUBLIC_ORIGIN ??
+    (vercelOrigin ? `https://${vercelOrigin}` : "http://localhost:3000");
   const publicOrigin = process.env.NEXT_PUBLIC_SYNESIS_API_URL ?? apiOrigin;
   try {
     const response = await fetch(

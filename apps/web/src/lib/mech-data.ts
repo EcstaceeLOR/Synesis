@@ -6,15 +6,16 @@ import {
 } from "@synesis/domain";
 import type { ViewState } from "@synesis/ui";
 
+import { demoMechDirectory } from "./demo-data";
+
 const apiOrigin = () =>
   process.env.SYNESIS_API_INTERNAL_URL ?? "http://localhost:4000";
 
 export async function loadMechDirectory(): Promise<ViewState<MechDirectory>> {
   if (process.env.SYNESIS_MODE !== "live") {
     return {
-      status: "empty",
-      message:
-        "Live Olas discovery is disabled in demo mode. No provider records have been fabricated.",
+      status: "ready",
+      data: demoMechDirectory,
     };
   }
   try {
@@ -56,11 +57,17 @@ export async function loadMech(
 ): Promise<ViewState<DiscoveredMech>> {
   if (!/^0x[0-9a-fA-F]{40}$/u.test(address))
     return { status: "empty", message: "That is not a full EVM Mech address." };
-  if (process.env.SYNESIS_MODE !== "live")
-    return {
-      status: "empty",
-      message: "Live Mech profiles are disabled in demo mode.",
-    };
+  if (process.env.SYNESIS_MODE !== "live") {
+    const demoMech = demoMechDirectory.mechs.find(
+      (mech) => mech.address.toLowerCase() === address.toLowerCase(),
+    );
+    return demoMech
+      ? {
+          status: "ready",
+          data: demoMech,
+        }
+      : { status: "empty", message: "Mech not found in the demo snapshot." };
+  }
   try {
     const response = await fetch(
       new URL(`/api/v1/mechs/${encodeURIComponent(address)}`, apiOrigin()),
