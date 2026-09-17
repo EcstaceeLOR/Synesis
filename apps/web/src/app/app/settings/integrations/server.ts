@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import type { IntegrationHealth } from "./types";
+import { createDemoIntegrationHealth } from "./demo-health";
 const apiUrl = process.env.SYNESIS_API_INTERNAL_URL ?? "http://localhost:4000";
 const unconfigured = (message: string): IntegrationHealth => ({
   organizationId: "unselected",
@@ -46,6 +47,7 @@ export const sessionContext = async (): Promise<{
   };
 };
 export const loadIntegrationHealth = async (): Promise<IntegrationHealth> => {
+  if (process.env.SYNESIS_MODE !== "live") return createDemoIntegrationHealth();
   try {
     const context = await sessionContext();
     if (!context)

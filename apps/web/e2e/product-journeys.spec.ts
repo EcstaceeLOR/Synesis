@@ -50,7 +50,7 @@ test.describe("Synesis connected product journeys", () => {
     const amount = page.getByLabel("Amount");
     await expect(amount).toBeEnabled();
     await amount.fill("1000000");
-    await expect(page.getByText("VALIDATED", { exact: true })).toBeVisible();
+    await expect(page.getByText("1,000,000 USDC base units")).toBeVisible();
     await page.reload();
     await expect(page.getByLabel("Amount")).toHaveValue("1000000");
 
@@ -74,9 +74,44 @@ test.describe("Synesis connected product journeys", () => {
     await expect(approve).toBeEnabled();
     await approve.click();
     await approve.click();
-    await expect(page.getByText("Approval recorded for SYN-1042")).toHaveCount(
-      1,
+    await expect(
+      page.getByText(/bounded procurement plan is ready/i),
+    ).toHaveCount(1);
+  });
+
+  test("creates a bounded intent through the deployed backend contract", async ({
+    page,
+  }) => {
+    await page.goto("/app/intents/new");
+    await page.getByLabel("Amount").fill("2500000");
+    const agents = page.locator(".agent-choice input[type=checkbox]");
+    await expect(agents).toHaveCount(2);
+    await agents.nth(0).check();
+    await agents.nth(1).check();
+    await page.getByRole("button", { name: /Freeze & create intent/i }).click();
+    await expect(page).toHaveURL(
+      /\/app\/intents\/SYN-[A-F0-9]{8}\?created=1$/u,
     );
+    await expect(page.getByText(/snapshot restored/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /Simulate exact call/i }).click();
+    await expect(page.getByText(/simulated successfully/i)).toBeVisible();
+    await expect(page.locator("code")).toContainText("sha256:");
+  });
+
+  test("backend status and canonical proof endpoints are healthy", async ({
+    request,
+  }) => {
+    const status = await request.get("/api/v1/status");
+    expect(status.ok()).toBe(true);
+    await expect(status.json()).resolves.toMatchObject({
+      service: "synesis-api",
+      status: "ok",
+    });
+
+    const proof = await request.get("/api/v1/proofs/PRF-1041");
+    expect(proof.ok()).toBe(true);
+    await expect(proof.json()).resolves.toMatchObject({ valid: true });
   });
 
   test("keyboard command navigation reaches a connected product surface", async ({

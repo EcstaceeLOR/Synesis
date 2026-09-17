@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Synesis Demo Script</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 16mm;
+      }
+      :root {
+        --lime: #72a91f;
+        --ink: #121713;
+        --muted: #566058;
+        --line: #d9dfda;
+        --panel: #f4f7f3;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family:
+          Inter,
+          Segoe UI,
+          Arial,
+          sans-serif;
+        font-size: 10.5pt;
+        line-height: 1.48;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 8mm;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        font-weight: 850;
+        letter-spacing: 0.18em;
+      }
+      .tag {
+        color: var(--lime);
+        font:
+          700 8pt Consolas,
+          monospace;
+        letter-spacing: 0.08em;
+      }
+      h1 {
+        margin: 13mm 0 3mm;
+        font-size: 31pt;
+        letter-spacing: -0.04em;
+      }
+      h2 {
+        margin: 9mm 0 3mm;
+        font-size: 17pt;
+        letter-spacing: -0.02em;
+        page-break-after: avoid;
+      }
+      h3 {
+        margin: 0 0 2mm;
+        font-size: 12pt;
+      }
+      p {
+        margin: 2mm 0;
+        color: var(--muted);
+      }
+      .summary {
+        padding: 5mm;
+        border-left: 3px solid var(--lime);
+        background: var(--panel);
+      }
+      .beat {
+        display: grid;
+        grid-template-columns: 20mm 1fr;
+        gap: 4mm;
+        margin: 4mm 0;
+        padding: 4mm;
+        border: 1px solid var(--line);
+        page-break-inside: avoid;
+      }
+      .time {
+        color: var(--lime);
+        font:
+          700 10pt Consolas,
+          monospace;
+      }
+      .say {
+        color: var(--ink);
+        font-weight: 650;
+      }
+      .do {
+        margin-top: 2mm;
+        padding: 2.5mm 3mm;
+        background: var(--panel);
+        color: var(--muted);
+      }
+      .proof {
+        color: #1e5a91;
+        font-family: Consolas, monospace;
+        font-size: 9pt;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 4mm 0;
+        page-break-inside: avoid;
+      }
+      th,
+      td {
+        padding: 3mm;
+        border: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--panel);
+      }
+      ul {
+        margin: 2mm 0;
+        padding-left: 6mm;
+      }
+      .avoid {
+        color: #9b3028;
+      }
+      footer {
+        margin-top: 10mm;
+        padding-top: 4mm;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 8.5pt;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="brand">SYNESIS</span
+      ><span class="tag">4-MINUTE JUDGE DEMO</span>
+    </header>
+    <h1>Paid intelligence. Proven execution.</h1>
+    <div class="summary">
+      <strong>One-sentence story:</strong> Synesis pays two independent Olas
+      Mechs for structured analysis, applies deterministic quorum, uses
+      KeeperHub as the only value-moving path, and publishes a proof connecting
+      the original intent to the verified Base and Aave outcome.
+    </div>
+
+    <h2>Pre-demo setup</h2>
+    <table>
+      <tr>
+        <th>Open before presenting</th>
+        <th>Expected state</th>
+      </tr>
+      <tr>
+        <td>https://synesis-web.vercel.app/app</td>
+        <td>DEMO / NO VALUE badge and BACKEND CONNECTED indicator</td>
+      </tr>
+      <tr>
+        <td>/app/intents/new</td>
+        <td>Two eligible demo Mechs available</td>
+      </tr>
+      <tr>
+        <td>/verify/PRF-1041</td>
+        <td>HASH VALID and canonical JSON download</td>
+      </tr>
+      <tr>
+        <td>/api/v1/status</td>
+        <td>synesis-api status: ok</td>
+      </tr>
+    </table>
+
+    <h2>Live narration</h2>
+    <div class="beat">
+      <span class="time">0:00–0:25</span>
+      <div>
+        <h3>Hook</h3>
+        <p class="say">
+          “Agents can recommend, and wallets can transact. The dangerous gap is
+          deciding when an agent’s recommendation deserves to move real value.
+          Synesis closes that gap.”
+        </p>
+        <div class="do">
+          <strong>DO:</strong> Show the landing page. Point to Olas
+          intelligence, KeeperHub execution, and Base settlement.
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <span class="time">0:25–0:55</span>
+      <div>
+        <h3>Prove this is a product</h3>
+        <p class="say">
+          “This is a connected operating surface, not a one-page prototype. The
+          command center links intents, agents, policies, KeeperHub executions,
+          treasury exposure, integrations, security, and public proofs.”
+        </p>
+        <div class="do">
+          <strong>DO:</strong> Open the command center. Point to BACKEND
+          CONNECTED, the environment badge, primary navigation, and live
+          activity drawer.
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <span class="time">0:55–1:35</span>
+      <div>
+        <h3>Create the economic intent</h3>
+        <p class="say">
+          “I’ll supply 2.5 USDC to Aave on Base. Before anything moves, Synesis
+          freezes the maximum principal, expiry, active policy, and exactly two
+          independent Mechs. Their addresses, metadata CIDs, and tool-schema
+          hashes become immutable evidence.”
+        </p>
+        <div class="do">
+          <strong>DO:</strong> Open New intent. Enter
+          <span class="proof">2500000</span>. Select Gaia Risk Mech and Valory
+          DeFi Analyst. Click <strong>Freeze &amp; create intent</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <span class="time">1:35–2:10</span>
+      <div>
+        <h3>Show the KeeperHub boundary</h3>
+        <p class="say">
+          “The Mechs produce evidence; they never produce executable calldata.
+          The deterministic policy checks quorum, confidence, risk, freshness,
+          amount caps, and independence. KeeperHub is the only component allowed
+          to simulate, sign, and broadcast.”
+        </p>
+        <div class="do">
+          <strong>DO:</strong> In the Intent Room, click
+          <strong>Simulate exact call</strong>. Show the returned simulation
+          hash and <span class="proof">demo-no-broadcast</span> guard. Then
+          click <strong>Approve execution</strong> and point out the idempotent
+          state transition.
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <span class="time">2:10–2:40</span>
+      <div>
+        <h3>Explain the live integration</h3>
+        <p class="say">
+          “In live mode, KeeperHub first pays for the Olas requests. Confirmed
+          Olas delivery events trigger a saved KeeperHub workflow and signed
+          webhook. After quorum, KeeperHub broadcasts the unchanged Aave call
+          using a stable economic idempotency key.”
+        </p>
+        <div class="do">
+          <strong>DO:</strong> Open Mech marketplace, then Execution ledger.
+          Point to the Olas payment, Aave supply, confirmed and unconfirmed
+          states.
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <span class="time">2:40–3:10</span>
+      <div>
+        <h3>Show fail-closed controls</h3>
+        <p class="say">
+          “Synesis never treats HTTP acceptance or a transaction hash as
+          success. KeeperHub’s verified receipt, an independently read Base
+          receipt, and the Aave position delta must all agree. Any mismatch
+          freezes the intent as unconfirmed.”
+        </p>
+        <div class="do">
+          <strong>DO:</strong> Open Treasury, Integrations, then Security.
+          Engage and release the emergency pause to demonstrate that the backend
+          blocks new economic writes.
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <span class="time">3:10–3:45</span>
+      <div>
+        <h3>Deliver the proof</h3>
+        <p class="say">
+          “This is the differentiator: PRF-1041 connects the frozen cause, paid
+          agent intelligence, deterministic policy, KeeperHub simulation and
+          execution, receipt, and final Aave state. The verifier recalculates
+          every content hash and the ordered root independently.”
+        </p>
+        <div class="do">
+          <strong>DO:</strong> Open <span class="proof">/verify/PRF-1041</span>.
+          Show HASH VALID, evidence entries, public BaseScan reference, and
+          download the canonical JSON.
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <span class="time">3:45–4:00</span>
+      <div>
+        <h3>Close</h3>
+        <p class="say">
+          “Synesis turns agent output into accountable economic action:
+          independent intelligence, deterministic authorization, KeeperHub-only
+          value movement, and proof anyone can verify.”
+        </p>
+        <div class="do">
+          <strong>DO:</strong> Return to the command center and leave the
+          backend-connected status visible.
+        </div>
+      </div>
+    </div>
+
+    <h2>Evidence checklist</h2>
+    <table>
+      <tr>
+        <th>Claim</th>
+        <th>Proof to show</th>
+      </tr>
+      <tr>
+        <td>Multipage working product</td>
+        <td>Connected navigation and interactive intent room</td>
+      </tr>
+      <tr>
+        <td>Frontend/backend integration</td>
+        <td>
+          <span class="proof">/api/v1/status</span>, intent POST, simulation
+          response
+        </td>
+      </tr>
+      <tr>
+        <td>KeeperHub value path</td>
+        <td>
+          Execution ledger + architecture; live evidence only after authorized
+          acceptance run
+        </td>
+      </tr>
+      <tr>
+        <td>Olas integration</td>
+        <td>Mech addresses, schema versions, request/delivery lifecycle</td>
+      </tr>
+      <tr>
+        <td>Public verification</td>
+        <td>PRF-1041 hash recalculation and JSON download</td>
+      </tr>
+    </table>
+
+    <h2>Guardrails for the presenter</h2>
+    <ul>
+      <li>
+        Always name the visible environment: <strong>DEMO / NO VALUE</strong> or
+        <strong>LIVE / BASE MAINNET</strong>.
+      </li>
+      <li>
+        Use “simulated” for demo responses. Use “executed” only with a verified
+        live receipt.
+      </li>
+      <li class="avoid">
+        Never present seeded IDs, balances, or PRF-1041 as evidence of a new
+        live hackathon transaction.
+      </li>
+      <li>
+        If a live dependency fails, show the failure honestly and continue with
+        the deterministic demo path.
+      </li>
+    </ul>
+
+    <footer>
+      Synesis · KeeperHub Agent Economy Hackathon ·
+      github.com/EcstaceeLOR/Synesis · synesis-web.vercel.app
+    </footer>
+  </body>
+</html>

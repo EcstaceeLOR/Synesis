@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Synesis</title>
+  <desc id="desc">Two intelligence paths converging into one verified execution</desc>
+  <g fill="none" stroke="#b8ff4a" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="10" cy="15" r="5" fill="#b8ff4a" stroke="none"/>
+    <circle cx="10" cy="49" r="5" fill="#d9ff9a" stroke="none"/>
+    <path d="M16 15h9c9 0 10 13 20 13h9" stroke-width="7"/>
+    <path d="M16 49h9c9 0 10-13 20-13h9" stroke-width="7"/>
+    <path d="M32 32l5-5 5 5-5 5z" fill="#efffd0" stroke="#071006" stroke-width="1.5"/>
+  </g>
+</svg>

@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Synesis — KeeperHub Agent Economy Hackathon</title>
+    <style>
+      @page {
+        size: 16in 9in;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #070a09;
+        --panel: #101512;
+        --line: #2d382f;
+        --lime: #b8ff4a;
+        --ink: #f5f5ec;
+        --muted: #9ba69e;
+        --blue: #70b7ff;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--bg);
+        font-family:
+          Inter,
+          Segoe UI,
+          Arial,
+          sans-serif;
+      }
+      .slide {
+        position: relative;
+        width: 16in;
+        height: 9in;
+        overflow: hidden;
+        page-break-after: always;
+        padding: 0.65in 0.8in;
+        background:
+          radial-gradient(
+            circle at 82% 10%,
+            rgba(184, 255, 74, 0.09),
+            transparent 34%
+          ),
+          var(--bg);
+      }
+      .slide:last-child {
+        page-break-after: auto;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 0.18in;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.14in;
+        font-weight: 850;
+        letter-spacing: 0.17em;
+      }
+      .mark {
+        width: 0.46in;
+        height: 0.46in;
+      }
+      .tag {
+        color: var(--lime);
+        font:
+          700 0.14in Consolas,
+          monospace;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0.75in 0 0.22in;
+        max-width: 12.8in;
+        font-size: 0.78in;
+        line-height: 0.94;
+        letter-spacing: -0.045em;
+      }
+      h2 {
+        margin: 0.48in 0 0.25in;
+        font-size: 0.52in;
+        letter-spacing: -0.035em;
+      }
+      h3 {
+        margin: 0 0 0.12in;
+        font-size: 0.25in;
+      }
+      p {
+        color: var(--muted);
+        font-size: 0.23in;
+        line-height: 1.48;
+      }
+      .lede {
+        max-width: 10.3in;
+        font-size: 0.29in;
+      }
+      .accent {
+        color: var(--lime);
+      }
+      .grid2,
+      .grid3,
+      .grid4 {
+        display: grid;
+        gap: 0.16in;
+      }
+      .grid2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .grid3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .card {
+        min-height: 1.55in;
+        padding: 0.26in;
+        border: 1px solid var(--line);
+        background: rgba(16, 21, 18, 0.9);
+      }
+      .card p {
+        margin: 0.08in 0 0;
+        font-size: 0.19in;
+      }
+      .num {
+        color: var(--lime);
+        font:
+          700 0.16in Consolas,
+          monospace;
+      }
+      .metric {
+        font-size: 0.44in;
+        font-weight: 850;
+        letter-spacing: -0.04em;
+      }
+      .flow {
+        display: flex;
+        align-items: stretch;
+        margin-top: 0.38in;
+      }
+      .flow .card {
+        flex: 1;
+        min-height: 2.5in;
+      }
+      .arrow {
+        display: grid;
+        place-items: center;
+        width: 0.42in;
+        color: var(--lime);
+        font-size: 0.3in;
+      }
+      .arch {
+        display: grid;
+        grid-template-columns: 1.2fr 0.7fr 1.2fr;
+        gap: 0.22in;
+        align-items: center;
+        margin-top: 0.3in;
+      }
+      .stack {
+        display: grid;
+        gap: 0.12in;
+      }
+      .box {
+        padding: 0.18in 0.22in;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        font-size: 0.19in;
+      }
+      .box strong {
+        color: var(--lime);
+      }
+      ul {
+        margin: 0.12in 0 0;
+        padding-left: 0.24in;
+        color: var(--muted);
+        font-size: 0.2in;
+        line-height: 1.5;
+      }
+      .proof {
+        display: grid;
+        grid-template-columns: 0.85fr 1.15fr;
+        gap: 0.3in;
+      }
+      .proof-root {
+        display: grid;
+        place-items: center;
+        min-height: 3in;
+        border: 1px solid rgba(184, 255, 74, 0.45);
+        background: rgba(184, 255, 74, 0.06);
+        text-align: center;
+      }
+      .proof-root b {
+        display: block;
+        color: var(--lime);
+        font:
+          700 0.18in Consolas,
+          monospace;
+      }
+      .footer {
+        position: absolute;
+        left: 0.8in;
+        right: 0.8in;
+        bottom: 0.34in;
+        display: flex;
+        justify-content: space-between;
+        color: #657168;
+        font:
+          600 0.12in Consolas,
+          monospace;
+        letter-spacing: 0.08em;
+      }
+      .quote {
+        max-width: 12in;
+        margin-top: 0.55in;
+        font-size: 0.53in;
+        line-height: 1.15;
+        letter-spacing: -0.035em;
+      }
+      .url {
+        display: inline-block;
+        margin-top: 0.3in;
+        padding: 0.15in 0.2in;
+        border: 1px solid var(--lime);
+        color: var(--lime);
+        font:
+          700 0.17in Consolas,
+          monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="slide">
+      <div class="top">
+        <div class="brand">
+          <svg class="mark" viewBox="0 0 64 64">
+            <circle cx="10" cy="15" r="5" fill="#b8ff4a" />
+            <circle cx="10" cy="49" r="5" fill="#d9ff9a" />
+            <path
+              d="M16 15h9c9 0 10 13 20 13h9M16 49h9c9 0 10-13 20-13h9"
+              fill="none"
+              stroke="#b8ff4a"
+              stroke-width="7"
+              stroke-linecap="round"
+            />
+            <path d="M32 32l5-5 5 5-5 5z" fill="#efffd0" /></svg
+          >SYNESIS
+        </div>
+        <span class="tag">KeeperHub Agent Economy Hackathon</span>
+      </div>
+      <h1>
+        Paid intelligence.<br /><span class="accent">Proven execution.</span>
+      </h1>
+      <p class="lede">
+        The procurement and execution layer where independent Olas agents
+        produce evidence, deterministic policy authorizes action, and KeeperHub
+        moves bounded value on Base.
+      </p>
+      <span class="url">synesis-web.vercel.app</span>
+      <div class="footer"><span>SYNESIS / 2026</span><span>01</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="top">
+        <span class="tag">The problem</span
+        ><span>Autonomy without proof is a liability</span>
+      </div>
+      <h2>
+        Agents can recommend. Wallets can transact.<br />The missing layer is
+        <span class="accent">accountable execution.</span>
+      </h2>
+      <div class="grid3">
+        <article class="card">
+          <span class="num">01</span>
+          <h3>Single-agent risk</h3>
+          <p>
+            One probabilistic answer can be stale, manipulated, or simply wrong.
+          </p>
+        </article>
+        <article class="card">
+          <span class="num">02</span>
+          <h3>Unsafe handoff</h3>
+          <p>
+            Free-form model output is too often converted directly into
+            transaction intent.
+          </p>
+        </article>
+        <article class="card">
+          <span class="num">03</span>
+          <h3>No audit chain</h3>
+          <p>
+            A transaction hash alone does not prove why value moved or whether
+            the result matched policy.
+          </p>
+        </article>
+      </div>
+      <p class="quote">
+        The agent economy needs a control plane that can pay for intelligence,
+        verify consensus, and prove every economic consequence.
+      </p>
+      <div class="footer"><span>SYNESIS / PROBLEM</span><span>02</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="top">
+        <span class="tag">The solution</span
+        ><span>Agents produce evidence. Policies authorize action.</span>
+      </div>
+      <h2>One deterministic lifecycle from question to receipt.</h2>
+      <div class="flow">
+        <article class="card">
+          <span class="num">01 / INTENT</span>
+          <h3>Bound exposure</h3>
+          <p>
+            Freeze strategy, amount, expiry, Mechs, policy, and maximum spend.
+          </p>
+        </article>
+        <span class="arrow">→</span>
+        <article class="card">
+          <span class="num">02 / PROCURE</span>
+          <h3>Buy intelligence</h3>
+          <p>
+            KeeperHub pays two independent Olas Mechs for structured analysis.
+          </p>
+        </article>
+        <span class="arrow">→</span>
+        <article class="card">
+          <span class="num">03 / DECIDE</span>
+          <h3>Reach quorum</h3>
+          <p>
+            A network-isolated policy engine checks confidence, risk, freshness,
+            and caps.
+          </p>
+        </article>
+        <span class="arrow">→</span>
+        <article class="card">
+          <span class="num">04 / EXECUTE</span>
+          <h3>Move value</h3>
+          <p>KeeperHub simulates and broadcasts the unchanged Aave call.</p>
+        </article>
+        <span class="arrow">→</span>
+        <article class="card">
+          <span class="num">05 / PROVE</span>
+          <h3>Seal evidence</h3>
+          <p>
+            Receipt, onchain state delta, and ordered content hashes become a
+            public proof.
+          </p>
+        </article>
+      </div>
+      <div class="footer"><span>SYNESIS / SOLUTION</span><span>03</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="top">
+        <span class="tag">Why KeeperHub</span
+        ><span>The execution authority</span>
+      </div>
+      <h2>
+        KeeperHub is not a badge. It is the only path that can move value.
+      </h2>
+      <div class="grid2">
+        <article class="card">
+          <h3 class="accent">Olas triggers KeeperHub</h3>
+          <p>
+            Confirmed Mech delivery events trigger a saved KeeperHub workflow
+            that sends a signed, replay-protected webhook into Synesis.
+          </p>
+          <ul>
+            <li>Live external project trigger</li>
+            <li>Onchain request and delivery correlation</li>
+            <li>Idempotent event inbox</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3 class="accent">Synesis consumes KeeperHub</h3>
+          <p>
+            Every approval and Aave supply is simulated and executed by the
+            KeeperHub organization wallet using stable economic idempotency
+            keys.
+          </p>
+          <ul>
+            <li>Exact simulation-to-broadcast hash binding</li>
+            <li>Target, selector, chain, and amount allowlists</li>
+            <li>Verified receipt plus independent Base confirmation</li>
+          </ul>
+        </article>
+      </div>
+      <p class="quote">
+        KeeperHub executes the value movement that Olas intelligence unlocks—and
+        Synesis makes the reason independently verifiable.
+      </p>
+      <div class="footer">
+        <span>SYNESIS / KEEPERHUB INTEGRATION</span><span>04</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="top">
+        <span class="tag">Architecture</span
+        ><span>Production-shaped, fail-closed</span>
+      </div>
+      <h2>Clear trust boundaries. Durable state. No hidden signer.</h2>
+      <div class="arch">
+        <div class="stack">
+          <div class="box">
+            <strong>Next.js product</strong><br />Multipage app + public
+            verifier
+          </div>
+          <div class="box">
+            <strong>Fastify API</strong><br />Auth, validation, approvals, reads
+          </div>
+          <div class="box">
+            <strong>PostgreSQL + Redis</strong><br />Lifecycle state + durable
+            jobs
+          </div>
+        </div>
+        <div class="stack">
+          <div class="box">
+            <strong>Coordinator</strong><br />Persisted state machine
+          </div>
+          <div class="box">
+            <strong>Policy engine</strong><br />No network, no LLM
+          </div>
+          <div class="box">
+            <strong>Proof assembler</strong><br />Canonical evidence root
+          </div>
+        </div>
+        <div class="stack">
+          <div class="box">
+            <strong>Olas adapter</strong><br />Official Mech client, no private
+            key
+          </div>
+          <div class="box">
+            <strong>KeeperHub gateway</strong><br />Only signing + broadcast
+            path
+          </div>
+          <div class="box">
+            <strong>Base + Aave V3</strong><br />Independent receipt and state
+            delta
+          </div>
+        </div>
+      </div>
+      <div class="grid4" style="margin-top: 0.3in">
+        <div class="card">
+          <span class="metric">0</span>
+          <p>private keys stored</p>
+        </div>
+        <div class="card">
+          <span class="metric">2/2</span>
+          <p>independent Mechs required</p>
+        </div>
+        <div class="card">
+          <span class="metric">3</span>
+          <p>proofs must agree</p>
+        </div>
+        <div class="card">
+          <span class="metric">1</span>
+          <p>economic execution per intent</p>
+        </div>
+      </div>
+      <div class="footer">
+        <span>SYNESIS / ARCHITECTURE</span><span>05</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="top">
+        <span class="tag">Product</span
+        ><span>A real operating surface, not a landing-page prototype</span>
+      </div>
+      <h2>Every entity connects to the evidence around it.</h2>
+      <div class="grid4">
+        <article class="card">
+          <h3>Command center</h3>
+          <p>
+            Health, active intents, approvals, execution activity, and proof
+            count.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Intent room</h3>
+          <p>
+            Create, freeze, simulate, approve, cancel, and follow the lifecycle.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Mech marketplace</h3>
+          <p>
+            Compatibility, price, tool schema, delivery history, and
+            eligibility.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Execution ledger</h3>
+          <p>Simulation, broadcast, receipt, retry identity, and finality.</p>
+        </article>
+        <article class="card">
+          <h3>Treasury</h3>
+          <p>
+            Wallet balances, Aave position, prepaid intelligence, and exposure.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Policies</h3>
+          <p>Immutable versions, canonical rules, content hashes, and caps.</p>
+        </article>
+        <article class="card">
+          <h3>Security</h3>
+          <p>Allowlist, approval threshold, sessions, and emergency pause.</p>
+        </article>
+        <article class="card">
+          <h3>Public proofs</h3>
+          <p>Independent recalculation and canonical JSON download.</p>
+        </article>
+      </div>
+      <div class="footer">
+        <span>SYNESIS / MULTIPAGE PRODUCT</span><span>06</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="top">
+        <span class="tag">Proof, not promises</span><span>PRF-1041</span>
+      </div>
+      <h2>One evidence bundle connects the complete economic story.</h2>
+      <div class="proof">
+        <div class="proof-root">
+          <div>
+            <b>CANONICAL ROOT</b>
+            <p>
+              Intent → Mech requests → deliveries → policy → simulation →
+              execution → receipt → Aave delta
+            </p>
+            <span class="tag">HASH VALID</span>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="box">
+            <strong>Frozen cause</strong> — strategy, amount, expiry, tool
+            schemas, policy version
+          </div>
+          <div class="box">
+            <strong>Paid intelligence</strong> — Olas request IDs, CIDs,
+            delivery events, normalized responses
+          </div>
+          <div class="box">
+            <strong>Deterministic authorization</strong> — every rule and
+            result, not a model opinion
+          </div>
+          <div class="box">
+            <strong>KeeperHub execution</strong> — simulation hash, execution
+            ID, verified receipt
+          </div>
+          <div class="box">
+            <strong>Independent outcome</strong> — Base receipt and Aave
+            position delta
+          </div>
+        </div>
+      </div>
+      <span class="url">synesis-web.vercel.app/verify/PRF-1041</span>
+      <div class="footer">
+        <span>SYNESIS / VERIFIABLE EVIDENCE</span><span>07</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="top">
+        <span class="tag">Safety and reliability</span
+        ><span>Value movement deserves stronger guarantees</span>
+      </div>
+      <h2>Designed to fail closed at every dangerous boundary.</h2>
+      <div class="grid3">
+        <article class="card">
+          <h3>Before execution</h3>
+          <ul>
+            <li>Base-only manifest</li>
+            <li>Contract + selector allowlist</li>
+            <li>Hard principal and procurement caps</li>
+            <li>Fresh approval and emergency pause</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>During execution</h3>
+          <ul>
+            <li>Exact payload simulation</li>
+            <li>Stable idempotency keys</li>
+            <li>No raw calldata signer</li>
+            <li>At-least-once jobs, once-only economics</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>After execution</h3>
+          <ul>
+            <li>Verified KeeperHub receipt</li>
+            <li>Independent Base receipt</li>
+            <li>Aave position delta</li>
+            <li>Public redacted proof root</li>
+          </ul>
+        </article>
+      </div>
+      <p class="quote">
+        No mock transaction is ever labeled live. No HTTP acceptance is ever
+        labeled success. No transaction hash is accepted without a verified
+        outcome.
+      </p>
+      <div class="footer"><span>SYNESIS / SAFETY</span><span>08</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="top">
+        <span class="tag">Why Synesis wins</span
+        ><span>Integration depth + product completeness</span>
+      </div>
+      <h2>The missing operating system for the agent economy.</h2>
+      <div class="grid3">
+        <article class="card">
+          <span class="num">UNIQUE LOOP</span>
+          <h3>Agents unlock—not control—value</h3>
+          <p>
+            Independent paid intelligence becomes evidence inside a
+            deterministic authorization system.
+          </p>
+        </article>
+        <article class="card">
+          <span class="num">REAL INTEGRATION</span>
+          <h3>KeeperHub both reacts and executes</h3>
+          <p>
+            Olas delivery triggers a KeeperHub workflow; KeeperHub then performs
+            the bounded Aave write.
+          </p>
+        </article>
+        <article class="card">
+          <span class="num">JUDGEABLE PROOF</span>
+          <h3>Every claim is inspectable</h3>
+          <p>
+            Interactive multipage product, source code, API health, receipts,
+            and public canonical evidence.
+          </p>
+        </article>
+      </div>
+      <p class="quote">
+        Synesis turns agent output into accountable economic action.
+      </p>
+      <span class="url"
+        >github.com/EcstaceeLOR/Synesis · synesis-web.vercel.app</span
+      >
+      <div class="footer"><span>SYNESIS / THANK YOU</span><span>09</span></div>
+    </section>
+  </body>
+</html>

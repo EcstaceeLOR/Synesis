@@ -1,6 +1,7 @@
 "use server";
 import { callIntegrationApi } from "./server";
 import type { IntegrationActionState } from "./types";
+import { createDemoIntegrationHealth } from "./demo-health";
 const value = (form: FormData, name: string): string => {
   const candidate = form.get(name);
   return typeof candidate === "string" ? candidate.trim() : "";
@@ -10,6 +11,14 @@ export async function manageIntegrations(
   form: FormData,
 ): Promise<IntegrationActionState> {
   try {
+    if (process.env.SYNESIS_MODE !== "live") {
+      return {
+        status: "success",
+        message:
+          "Demo dependency checks passed. Live credentials were not stored and no transaction was sent.",
+        health: createDemoIntegrationHealth(),
+      };
+    }
     if (value(form, "operation") === "recheck") {
       return {
         status: "success",

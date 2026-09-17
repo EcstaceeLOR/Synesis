@@ -10,13 +10,40 @@ import {
   navigationGroups,
   type NavigationItem,
 } from "../lib/navigation";
+import { BrandMark } from "./brand-mark";
 
-const activity = [
-  { time: "12:04:18", label: "Proof bundle sealed", status: "VERIFIED" },
-  { time: "12:03:51", label: "KeeperHub receipt confirmed", status: "FINAL" },
-  { time: "12:02:07", label: "Quorum reached 3 / 3", status: "PASSED" },
-  { time: "11:59:42", label: "Olas deliveries normalized", status: "READY" },
+const initialActivity = [
+  {
+    id: "proof",
+    time: "12:04:18",
+    label: "Proof bundle sealed",
+    status: "VERIFIED",
+    href: "/verify/PRF-1041",
+  },
+  {
+    id: "receipt",
+    time: "12:03:51",
+    label: "KeeperHub receipt confirmed",
+    status: "FINAL",
+    href: "/app/executions/KH-8831",
+  },
+  {
+    id: "quorum",
+    time: "12:02:07",
+    label: "Quorum reached 2 / 2",
+    status: "PASSED",
+    href: "/app/intents/SYN-1041",
+  },
+  {
+    id: "olas",
+    time: "11:59:42",
+    label: "Olas deliveries normalized",
+    status: "READY",
+    href: "/app/mechs",
+  },
 ] as const;
+
+type ActivityEvent = (typeof initialActivity)[number];
 
 function NavigationLink({ item }: { readonly item: NavigationItem }) {
   const pathname = usePathname();
@@ -58,6 +85,8 @@ export function AppShell({ mode, children }: AppShellProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [activity, setActivity] =
+    useState<readonly ActivityEvent[]>(initialActivity);
   const pathname = usePathname();
   const mobileMenu = useRef<HTMLDetailsElement>(null);
   const commandButton = useRef<HTMLButtonElement>(null);
@@ -67,6 +96,15 @@ export function AppShell({ mode, children }: AppShellProps) {
 
   useEffect(() => {
     setHydrated(true);
+    void fetch("/api/activity", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          events?: readonly ActivityEvent[];
+        };
+        if (payload.events?.length) setActivity(payload.events);
+      })
+      .catch(() => undefined);
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setActivityOpen(false);
@@ -107,7 +145,7 @@ export function AppShell({ mode, children }: AppShellProps) {
           href="/app"
           aria-label="Synesis command center"
         >
-          <span>S</span>
+          <BrandMark size={38} />
           <strong>SYNESIS</strong>
           <small>Agent economy OS</small>
         </Link>
@@ -192,10 +230,12 @@ export function AppShell({ mode, children }: AppShellProps) {
         </header>
         <ol>
           {activity.map((event) => (
-            <li key={event.time}>
+            <li key={event.id}>
               <time>{event.time}</time>
               <div>
-                <strong>{event.label}</strong>
+                <Link href={event.href} onClick={() => setActivityOpen(false)}>
+                  <strong>{event.label}</strong>
+                </Link>
                 <StatusBadge tone="positive">{event.status}</StatusBadge>
               </div>
             </li>
