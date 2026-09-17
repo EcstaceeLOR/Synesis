@@ -19,6 +19,10 @@ canonical proof download. Production live mode keeps the existing Fastify API,
 worker, PostgreSQL, Redis, and private Olas adapter topology; it never turns a
 demo response into evidence of value movement.
 
+Anonymous visitors can explore every application surface while the deployment
+is in its default, no-funds `demo` mode. Setting `SYNESIS_MODE=live` restores
+the fail-closed OIDC session boundary before any live integration can run.
+
 ## Core lifecycle
 
 ```text
